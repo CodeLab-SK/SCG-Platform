@@ -66,6 +66,29 @@ async function uploadFile(path, { title, file }, token = localStorage.getItem("s
   return payload;
 }
 
+async function requestBlob(path, token = localStorage.getItem("ssg_token")) {
+  const response = await fetch(`${API_URL}${path}`, {
+    headers: {
+      ...(token ? { Authorization: `Bearer ${token}` } : {})
+    }
+  });
+  if (!response.ok) {
+    const payload = await response.json().catch(() => ({}));
+    throw new Error(payload.error || "Request failed");
+  }
+  return response.blob();
+}
+
+const AI_DESTINATIONS = [
+  ["ChatGPT", "https://chatgpt.com/"],
+  ["Gemini", "https://gemini.google.com/"],
+  ["Claude", "https://claude.ai/new"],
+  ["Microsoft Copilot", "https://copilot.microsoft.com/"],
+  ["Perplexity", "https://www.perplexity.ai/"],
+  ["DeepSeek", "https://chat.deepseek.com/"],
+  ["Grok", "https://grok.com/"]
+];
+
 function App() {
   const [data, setData] = useState(null);
   const [loadError, setLoadError] = useState("");
@@ -120,7 +143,6 @@ function App() {
   const activeWorkspace = data?.workspaces.find((item) => item.id === activeWorkspaceId);
   const workspaceMessages = messageFeed.filter((message) => message.workspaceId === (activeWorkspace?.id || "global"));
   const isAdmin = currentUser?.role === "admin";
-  const personalSessions = data?.sessions.filter((session) => !session.workspaceId || session.workspaceId === "global") || [];
 
   useEffect(() => {
     if (activeSemester?.id) setActiveSemesterId(activeSemester.id);
@@ -321,7 +343,7 @@ function App() {
           </Panel>
         </section>
 
-        <section className="grid three">
+        <section className="grid two">
           <Panel id="tasks" title="Tasks" icon={ClipboardList}>
             <Gate user={currentUser} text="Login to manage tasks.">
               <TaskForm onCreate={(body) => refreshAfter(request("/api/tasks", { method: "POST", body: JSON.stringify(body) }), "Task added")} />
@@ -330,30 +352,15 @@ function App() {
               <div className="task" key={task.id}>
                 <button className="taskToggle" onClick={() => refreshAfter(request(`/api/tasks/${task.id}`, { method: "PATCH", body: JSON.stringify({ done: !task.done }) }), "Task updated")}>
                   <CheckCircle2 size={18} className={task.done ? "done" : ""} />
-                  <span>{task.title}</span>
+                  <span>
+                    <b>{task.title}</b>
+                    {task.dueDate && <small>{formatTaskDueDate(task.dueDate)}</small>}
+                  </span>
                 </button>
                 <button className="iconButton dangerButton" onClick={() => refreshAfter(request(`/api/tasks/${task.id}`, { method: "DELETE" }), "Task deleted")} title="Delete task" aria-label={`Delete task ${task.title}`}>
                   <Trash2 size={17} />
                 </button>
               </div>
-            ))}
-          </Panel>
-
-          <Panel id="sessions" title="Study Sessions" icon={CalendarClock}>
-            <Gate user={currentUser} text="Login to schedule sessions.">
-              <SessionForm workspaceId={activeWorkspace?.id} onCreate={(body) => refreshAfter(request("/api/sessions", { method: "POST", body: JSON.stringify(body) }), "Session scheduled")} />
-            </Gate>
-            {personalSessions.slice(0, 5).map((session) => (
-              <article className="item" key={session.id}>
-                <div>
-                  <strong>{session.title}</strong>
-                  <span>{session.duration} min / {session.attendees?.length || 0} attending / code {session.meetingCode}</span>
-                </div>
-                <div className="rowActions">
-                  <button className="iconButton" onClick={() => setActiveMeeting(session)} title="Open live class"><Video size={17} /></button>
-                  <button className="dangerButton" onClick={() => refreshAfter(request(`/api/sessions/${session.id}`, { method: "DELETE" }), "Session left")}>Leave</button>
-                </div>
-              </article>
             ))}
           </Panel>
 
@@ -573,6 +580,23 @@ function Field({ placeholder, value, onChange, type = "text" }) {
   return <input type={type} placeholder={placeholder} value={value} onChange={(event) => onChange(event.target.value)} />;
 }
 
+function formatTaskDueDate(dateValue) {
+  const due = new Date(`${dateValue}T00:00:00`);
+  if (Number.isNaN(due.getTime())) return "";
+
+  const today = new Date();
+  const startToday = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+  const startDue = new Date(due.getFullYear(), due.getMonth(), due.getDate());
+  const days = Math.ceil((startDue - startToday) / 86400000);
+  const dayName = due.toLocaleDateString(undefined, { weekday: "long" });
+  const dateLabel = due.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
+
+  if (days > 1) return `Due ${dateLabel} (${dayName}) / ${days} days remaining`;
+  if (days === 1) return `Due ${dateLabel} (${dayName}) / tomorrow`;
+  if (days === 0) return `Due ${dateLabel} (${dayName}) / today`;
+  return `Due ${dateLabel} (${dayName}) / ${Math.abs(days)} days overdue`;
+}
+
 function DepartmentForm({ onCreate }) {
   const [name, setName] = useState("");
   return <InlineForm icon={Plus} action="Add" onSubmit={() => onCreate({ name }).then(() => setName(""))}><Field placeholder="New department" value={name} onChange={setName} /></InlineForm>;
@@ -740,6 +764,7 @@ function ResourceModal({ resource, onClose }) {
   const { item, kind } = resource;
   const { src, isVideo, isImage } = getResourceDetails(item, kind);
   const [zoom, setZoom] = useState(1);
+  const [scanOpen, setScanOpen] = useState(false);
 
   useEffect(() => {
     const handleKeyDown = (event) => {
@@ -761,6 +786,9 @@ function ResourceModal({ resource, onClose }) {
           <span>by {item.addedBy || "Student"}</span>
         </div>
         <div className="viewerActions">
+          {!isVideo && item.fileUrl && (
+            <button onClick={() => setScanOpen((value) => !value)} title="Scan paper"><Search size={17} /><span>Scan</span></button>
+          )}
           {isVideo && (
             <>
               <button className="iconButton" onClick={() => setZoom((value) => Math.max(.5, Number((value - .25).toFixed(2))))} title="Zoom out" aria-label="Zoom out"><ZoomOut size={18} /></button>
@@ -771,6 +799,7 @@ function ResourceModal({ resource, onClose }) {
           <button className="iconButton" onClick={onClose} title="Close viewer" aria-label="Close viewer"><X size={20} /></button>
         </div>
       </header>
+      {scanOpen && <ScanPanel item={item} />}
       <div className={`resourceStage ${isVideo ? "videoStage" : ""}`}>
         {src ? (
           isVideo ? (
@@ -782,6 +811,132 @@ function ResourceModal({ resource, onClose }) {
           )
         ) : (
           <span>Upload unavailable</span>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function ScanPanel({ item }) {
+  const imageRef = useRef(null);
+  const [mode, setMode] = useState("select");
+  const [page, setPage] = useState(1);
+  const [imageUrl, setImageUrl] = useState("");
+  const [selection, setSelection] = useState(null);
+  const [dragStart, setDragStart] = useState(null);
+  const [status, setStatus] = useState("");
+
+  useEffect(() => {
+    let revokedUrl = "";
+    setStatus("Preparing scan");
+    setSelection(null);
+    requestBlob(`/api/paper-scan?fileUrl=${encodeURIComponent(item.fileUrl)}&page=${page}&mode=${mode === "whole" ? "whole" : "page"}`)
+      .then((blob) => {
+        const url = URL.createObjectURL(blob);
+        revokedUrl = url;
+        setImageUrl(url);
+        setStatus("Ready to copy");
+      })
+      .catch((error) => setStatus(error.message));
+    return () => {
+      if (revokedUrl) URL.revokeObjectURL(revokedUrl);
+    };
+  }, [item.fileUrl, page, mode]);
+
+  const pointerPosition = (event) => {
+    const rect = imageRef.current.getBoundingClientRect();
+    return {
+      x: Math.max(0, Math.min(rect.width, event.clientX - rect.left)),
+      y: Math.max(0, Math.min(rect.height, event.clientY - rect.top))
+    };
+  };
+
+  const startSelection = (event) => {
+    if (mode !== "select" || !imageRef.current) return;
+    const position = pointerPosition(event);
+    setDragStart(position);
+    setSelection({ x: position.x, y: position.y, width: 0, height: 0 });
+  };
+
+  const moveSelection = (event) => {
+    if (mode !== "select" || !dragStart || !imageRef.current) return;
+    const position = pointerPosition(event);
+    setSelection({
+      x: Math.min(dragStart.x, position.x),
+      y: Math.min(dragStart.y, position.y),
+      width: Math.abs(position.x - dragStart.x),
+      height: Math.abs(position.y - dragStart.y)
+    });
+  };
+
+  const copyScan = async () => {
+    if (!imageRef.current || !imageUrl) return;
+    const image = imageRef.current;
+    const canvas = document.createElement("canvas");
+    const rect = image.getBoundingClientRect();
+    const scaleX = image.naturalWidth / rect.width;
+    const scaleY = image.naturalHeight / rect.height;
+    const crop = mode === "select" && selection?.width > 8 && selection?.height > 8
+      ? {
+          x: selection.x * scaleX,
+          y: selection.y * scaleY,
+          width: selection.width * scaleX,
+          height: selection.height * scaleY
+        }
+      : { x: 0, y: 0, width: image.naturalWidth, height: image.naturalHeight };
+
+    canvas.width = Math.max(1, Math.round(crop.width));
+    canvas.height = Math.max(1, Math.round(crop.height));
+    canvas.getContext("2d").drawImage(image, crop.x, crop.y, crop.width, crop.height, 0, 0, canvas.width, canvas.height);
+
+    const blob = await new Promise((resolve) => canvas.toBlob(resolve, "image/png"));
+    if (!blob || !navigator.clipboard || !window.ClipboardItem) throw new Error("Image clipboard is not available in this browser.");
+    await navigator.clipboard.write([new ClipboardItem({ "image/png": blob })]);
+  };
+
+  const openAi = async (url) => {
+    const nextTab = window.open("about:blank", "_blank");
+    try {
+      setStatus("Copying image");
+      await copyScan();
+      setStatus("Copied. Paste it in the AI tab with Ctrl+V.");
+      if (nextTab) nextTab.location.href = url;
+      else window.open(url, "_blank", "noopener,noreferrer");
+    } catch (error) {
+      nextTab?.close();
+      setStatus(error.message);
+    }
+  };
+
+  return (
+    <div className="scanPanel">
+      <div className="scanControls">
+        <div className="authTabs">
+          <button type="button" className={mode === "select" ? "active" : ""} onClick={() => setMode("select")}>Select area</button>
+          <button type="button" className={mode === "full" ? "active" : ""} onClick={() => setMode("full")}>Full screen</button>
+          <button type="button" className={mode === "whole" ? "active" : ""} onClick={() => setMode("whole")}>Whole PDF</button>
+        </div>
+        {mode !== "whole" && <input type="number" min="1" value={page} onChange={(event) => setPage(Math.max(1, Number(event.target.value || 1)))} aria-label="PDF page" />}
+        <span>{status}</span>
+      </div>
+      <div className="aiDestinations">
+        {AI_DESTINATIONS.map(([label, url]) => (
+          <button key={label} type="button" onClick={() => openAi(url)}>{label}</button>
+        ))}
+      </div>
+      <div
+        className={`scanCanvas ${mode === "select" ? "selecting" : ""}`}
+        onPointerDown={startSelection}
+        onPointerMove={moveSelection}
+        onPointerUp={() => setDragStart(null)}
+        onPointerLeave={() => setDragStart(null)}
+      >
+        {imageUrl ? <img ref={imageRef} src={imageUrl} alt={`${item.title} scan`} draggable="false" /> : <span>Preparing scan</span>}
+        {mode === "select" && selection && (
+          <div
+            className="selectionBox"
+            style={{ left: selection.x, top: selection.y, width: selection.width, height: selection.height }}
+          />
         )}
       </div>
     </div>
@@ -823,7 +978,13 @@ function SolutionModal({ item, solution, onClose }) {
 
 function TaskForm({ onCreate }) {
   const [title, setTitle] = useState("");
-  return <InlineForm icon={Plus} action="Task" onSubmit={() => onCreate({ title }).then(() => setTitle(""))}><Field placeholder="Add study task" value={title} onChange={setTitle} /></InlineForm>;
+  const [dueDate, setDueDate] = useState("");
+  return (
+    <InlineForm icon={Plus} action="Task" onSubmit={() => onCreate({ title, dueDate }).then(() => { setTitle(""); setDueDate(""); })}>
+      <Field placeholder="Add study task" value={title} onChange={setTitle} />
+      <Field type="date" placeholder="Due date" value={dueDate} onChange={setDueDate} />
+    </InlineForm>
+  );
 }
 
 function SessionForm({ onCreate, workspaceId }) {

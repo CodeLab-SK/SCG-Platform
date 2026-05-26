@@ -214,6 +214,10 @@ main {
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
+.two {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
 .libraryGrid {
   grid-template-columns: 390px minmax(0, 1fr);
 }
@@ -593,6 +597,65 @@ code {
   color: #172026;
 }
 
+.scanPanel {
+  display: grid;
+  gap: 10px;
+  padding: 12px 18px;
+  background: #edf4f1;
+  border-bottom: 1px solid #d4e1dc;
+}
+
+.scanControls,
+.aiDestinations {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.scanControls input {
+  width: 92px;
+}
+
+.scanControls span {
+  color: #52655f;
+  font-weight: 700;
+}
+
+.aiDestinations button {
+  min-height: 36px;
+  padding: 8px 10px;
+  background: #263632;
+}
+
+.scanCanvas {
+  position: relative;
+  max-height: 360px;
+  overflow: auto;
+  border: 1px solid #d4e1dc;
+  border-radius: 8px;
+  background: #ffffff;
+  display: grid;
+  place-items: start stretch;
+}
+
+.scanCanvas.selecting {
+  cursor: crosshair;
+}
+
+.scanCanvas img {
+  width: 100%;
+  height: auto;
+  user-select: none;
+}
+
+.selectionBox {
+  position: absolute;
+  border: 2px solid #30c48d;
+  background: rgba(48, 196, 141, .18);
+  pointer-events: none;
+}
+
 .videoStage video {
   min-width: 280px;
   min-height: 180px;
@@ -622,6 +685,14 @@ code {
 .taskToggle span {
   overflow-wrap: anywhere;
   text-align: left;
+  display: grid;
+  gap: 3px;
+}
+
+.taskToggle small {
+  color: #52655f;
+  font-size: 12px;
+  font-weight: 600;
 }
 
 .done {
@@ -743,6 +814,7 @@ button:disabled {
   .topbar,
   .serverLayout,
   .three,
+  .two,
   .libraryGrid,
   .metrics,
   .noteGrid,

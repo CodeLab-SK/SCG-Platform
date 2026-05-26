@@ -8,6 +8,7 @@ import path from "path";
 import { fileURLToPath } from "url";
 import { PDFParse } from "pdf-parse";
 import { createWorker } from "tesseract.js";
+import { PNG } from "pngjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DB_PATH = path.join(__dirname, "db.json");
@@ -45,6 +46,25 @@ function contentDispositionName(fileName) {
   return String(fileName || "resource").replace(/["\r\n]/g, "");
 }
 
+function stackPngPages(pages) {
+  const images = pages.map((page) => PNG.sync.read(Buffer.from(page.data)));
+  if (!images.length) return null;
+
+  const width = Math.max(...images.map((image) => image.width));
+  const height = images.reduce((total, image) => total + image.height, 0);
+  const output = new PNG({ width, height });
+  output.data.fill(255);
+
+  let offsetY = 0;
+  images.forEach((image) => {
+    const offsetX = Math.floor((width - image.width) / 2);
+    PNG.bitblt(image, output, 0, 0, image.width, image.height, offsetX, offsetY);
+    offsetY += image.height;
+  });
+
+  return PNG.sync.write(output);
+}
+
 async function saveUpload(req, folder) {
   const title = decodeHeader(req.get("x-title")).trim();
   const originalName = decodeHeader(req.get("x-file-name")).trim();
@@ -79,6 +99,41 @@ app.get("/uploads/:folder/:fileName", async (req, res) => {
   res.sendFile(filePath, (error) => {
     if (error && !res.headersSent) res.status(error.statusCode || 404).json({ error: "Uploaded file not found." });
   });
+});
+
+app.get("/api/paper-scan", requireUser, async (req, res) => {
+  try {
+    const fileUrl = String(req.query.fileUrl || "");
+    const page = Math.max(1, Number(req.query.page || 1));
+    const mode = req.query.mode === "whole" ? "whole" : "page";
+    if (!fileUrl.startsWith("/uploads/")) return res.status(400).json({ error: "Uploaded paper is required." });
+
+    const filePath = path.join(__dirname, fileUrl);
+    if (!filePath.startsWith(UPLOAD_DIR)) return res.status(400).json({ error: "Invalid paper path." });
+
+    const buffer = await fs.readFile(filePath);
+    if (fileUrl.toLowerCase().endsWith(".pdf")) {
+      const parser = new PDFParse({ data: buffer });
+      try {
+        const screenshot = await parser.getScreenshot(mode === "whole"
+          ? { scale: 2, imageBuffer: true, imageDataUrl: false, first: 6 }
+          : { scale: 2, imageBuffer: true, imageDataUrl: false, partial: [page] });
+        const image = mode === "whole" ? stackPngPages(screenshot.pages || []) : screenshot.pages?.[0]?.data;
+        if (!image?.length) return res.status(404).json({ error: "Page image could not be created." });
+        res.setHeader("Content-Type", "image/png");
+        res.setHeader("Cache-Control", "no-store");
+        return res.send(Buffer.from(image));
+      } finally {
+        await parser.destroy();
+      }
+    }
+
+    res.setHeader("Content-Type", fileUrl.toLowerCase().endsWith(".png") ? "image/png" : "image/jpeg");
+    res.setHeader("Cache-Control", "no-store");
+    res.send(buffer);
+  } catch {
+    res.status(500).json({ error: "Could not scan this paper." });
+  }
 });
 
 app.get("/", (_req, res) => {
@@ -951,7 +1006,8 @@ app.post("/api/tasks", requireUser, async (req, res) => {
   const title = String(req.body.title || "").trim();
   if (!title) return res.status(400).json({ error: "Task title is required." });
 
-  const task = { id: nanoid(), title, owner: req.user.name, ownerEmail: req.user.email, done: false, createdAt: now() };
+  const dueDate = String(req.body.dueDate || "").trim();
+  const task = { id: nanoid(), title, dueDate, owner: req.user.name, ownerEmail: req.user.email, done: false, createdAt: now() };
   req.db.tasks.unshift(task);
   await writeDb(req.db);
   io.emit("task:created", task);
@@ -964,7 +1020,8 @@ app.patch("/api/tasks/:id", requireUser, async (req, res) => {
   if (task.ownerEmail !== req.user.email && req.user.role !== "admin") {
     return res.status(403).json({ error: "Only the owner or admin can update this task." });
   }
-  task.done = Boolean(req.body.done);
+  if ("done" in req.body) task.done = Boolean(req.body.done);
+  if ("dueDate" in req.body) task.dueDate = String(req.body.dueDate || "").trim();
   await writeDb(req.db);
   io.emit("task:updated", task);
   res.json(task);

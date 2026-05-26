@@ -11,7 +11,7 @@ Error generating stack: `+e.message+`
     <strong>Starting SSG Study Platform...</strong>
     <span>Loading the React application.</span>
   </div>
-`,ne(async()=>{let{default:e}=await import(`./App-CIIqP1da.js`);return{default:e}},[],import.meta.url).then(({default:e})=>{(0,y.createRoot)(re).render((0,ee.jsx)(v.StrictMode,{children:(0,ee.jsx)(e,{})}))}).catch(e=>{re.innerHTML=`
+`,ne(async()=>{let{default:e}=await import(`./App-Btu0N71q.js`);return{default:e}},[],import.meta.url).then(({default:e})=>{(0,y.createRoot)(re).render((0,ee.jsx)(v.StrictMode,{children:(0,ee.jsx)(e,{})}))}).catch(e=>{re.innerHTML=`
       <div class="loading">
         <strong>Frontend startup failed</strong>
         <span>${e.message||e}</span>

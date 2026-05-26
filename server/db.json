@@ -1,0 +1,196 @@
+{
+  "departments": [
+    {
+      "id": "cl5l4jG4RvQOVAe1Nc3PR",
+      "name": "Software Engineering",
+      "createdAt": "2026-05-22T15:25:37.680Z",
+      "semesters": [
+        {
+          "id": "XHy74I8JSFU8sBAFg6MY4",
+          "number": 1,
+          "subjects": []
+        },
+        {
+          "id": "9rU01ltxHDtdKr9cECZ2N",
+          "number": 2,
+          "subjects": []
+        },
+        {
+          "id": "OOcHFUtpPUSzBVked1pWl",
+          "number": 3,
+          "subjects": []
+        },
+        {
+          "id": "Bm4fQb_PoRxX6D5fGZXuk",
+          "number": 4,
+          "subjects": []
+        },
+        {
+          "id": "1ob_--clER6dp0JEnTMsN",
+          "number": 5,
+          "subjects": []
+        },
+        {
+          "id": "PJwYkLNWiUYZs39CbKwY-",
+          "number": 6,
+          "subjects": [
+            {
+              "id": "fo8vE8RCMe2RLNbZFRGlU",
+              "name": "PME",
+              "createdAt": "2026-05-25T13:18:54.311Z",
+              "createdBy": "sahilisthebest885@gmail.com",
+              "papers": {
+                "midterm": [],
+                "finals": []
+              },
+              "notes": [],
+              "videos": []
+            }
+          ]
+        },
+        {
+          "id": "sJgXsshaqYD98hRNfeh-9",
+          "number": 7,
+          "subjects": []
+        },
+        {
+          "id": "XPtZHxW3g1D0wilfpQgA1",
+          "number": 8,
+          "subjects": []
+        }
+      ]
+    },
+    {
+      "id": "PpXOcdmQuwHSk6Im_SDBM",
+      "name": "Computer Science",
+      "createdAt": "2026-05-22T15:25:37.682Z",
+      "semesters": [
+        {
+          "id": "c3DaSI_w0X-xRTfdwIVd3",
+          "number": 1,
+          "subjects": []
+        },
+        {
+          "id": "QElntHWTMtHS32jJkhhNs",
+          "number": 2,
+          "subjects": []
+        },
+        {
+          "id": "FCWpWACet-DphIDsB7m3z",
+          "number": 3,
+          "subjects": []
+        },
+        {
+          "id": "ZmtuUliBLP31Vijtk9kke",
+          "number": 4,
+          "subjects": []
+        },
+        {
+          "id": "pvvHHm0asyhgJQafLpIzg",
+          "number": 5,
+          "subjects": []
+        },
+        {
+          "id": "myadTV3OJCzhtEJMpRlHs",
+          "number": 6,
+          "subjects": []
+        },
+        {
+          "id": "_VMDtwWgO_nNeEmEpBGZU",
+          "number": 7,
+          "subjects": []
+        },
+        {
+          "id": "5BryVkjRjtT5Lc3ESvL-Z",
+          "number": 8,
+          "subjects": []
+        }
+      ]
+    }
+  ],
+  "workspaces": [
+    {
+      "id": "b8d84KmfhoeZuNSQ23zdE",
+      "joinCode": "IMEIXL",
+      "name": "wtudywithsahil",
+      "community": "General Study Circle",
+      "members": [
+        {
+          "id": "olwUqQX5gFn4Mk1fYL61x",
+          "name": "Sahil Admin",
+          "email": "sahilisthebest885@gmail.com",
+          "role": "owner"
+        }
+      ],
+      "focus": "Exam preparation",
+      "createdBy": "sahilisthebest885@gmail.com",
+      "createdAt": "2026-05-25T14:13:50.402Z"
+    }
+  ],
+  "messages": [
+    {
+      "id": "4NXs7SFpdsfprNDQR5h9A",
+      "workspaceId": "global",
+      "author": "Student",
+      "text": "hi",
+      "createdAt": "2026-05-22T15:34:38.889Z"
+    }
+  ],
+  "notes": [],
+  "tasks": [
+    {
+      "id": "Og2z1XKZi1Z-VfjK84Vcg",
+      "title": "hlo",
+      "owner": "Sahil Admin",
+      "ownerEmail": "sahilisthebest885@gmail.com",
+      "done": false,
+      "createdAt": "2026-05-25T14:13:32.751Z"
+    }
+  ],
+  "sessions": [
+    {
+      "id": "MXizzVzrSrQmNqsQMOSp0",
+      "title": "Study session",
+      "startsAt": "2026-05-22T15:30:29.516Z",
+      "duration": 60,
+      "attendees": [],
+      "createdAt": "2026-05-22T15:30:29.516Z",
+      "meetingCode": "M2YOY_",
+      "workspaceId": "global"
+    },
+    {
+      "id": "z4-AzvKveKoSCNxfttXsY",
+      "title": "Study session",
+      "startsAt": "2026-05-22T15:30:25.112Z",
+      "duration": 60,
+      "attendees": [],
+      "createdAt": "2026-05-22T15:30:25.112Z",
+      "meetingCode": "IRIALC",
+      "workspaceId": "global"
+    }
+  ],
+  "users": [
+    {
+      "id": "olwUqQX5gFn4Mk1fYL61x",
+      "name": "Sahil Admin",
+      "email": "sahilisthebest885@gmail.com",
+      "password": "sahil@885",
+      "role": "admin",
+      "provider": "google",
+      "googleVerified": true,
+      "token": "DkjheuFzP_1DiYIbRA6_1b2laPgm_4S1",
+      "createdAt": "2026-05-22T15:50:40.212Z"
+    },
+    {
+      "id": "lYQ36L3rm_ADrf6Ci10LD",
+      "name": "Karan",
+      "email": "mountdew38@gmail.com",
+      "password": "mountdew38",
+      "role": "student",
+      "provider": "password",
+      "googleVerified": false,
+      "token": "DbtC45QnCDWL9SDNxaGeYvtk4OPw7FjE",
+      "createdAt": "2026-05-25T14:11:34.071Z"
+    }
+  ]
+}

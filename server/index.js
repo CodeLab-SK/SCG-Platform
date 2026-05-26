@@ -6,6 +6,8 @@ import { nanoid } from "nanoid";
 import fs from "fs/promises";
 import path from "path";
 import { fileURLToPath } from "url";
+import { PDFParse } from "pdf-parse";
+import { createWorker } from "tesseract.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DB_PATH = path.join(__dirname, "db.json");
@@ -237,6 +239,154 @@ async function callGemini(text) {
   return JSON.parse(jsonText);
 }
 
+async function callGeminiPaper({ title, mimeType, buffer }) {
+  if (!process.env.GEMINI_API_KEY) return null;
+
+  const prompt = `Read this past paper and solve it for a university student.
+Give only the solved paper in clear readable text.
+Keep the original question numbers/headings where possible.
+For calculations, show useful steps and final answers.
+If a question is unreadable, write "Unreadable question" for that item.
+
+Paper title: ${title}`;
+
+  const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${process.env.GEMINI_API_KEY}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      contents: [{
+        parts: [
+          { text: prompt },
+          {
+            inline_data: {
+              mime_type: mimeType || "application/pdf",
+              data: buffer.toString("base64")
+            }
+          }
+        ]
+      }]
+    })
+  });
+
+  if (!response.ok) throw new Error("Gemini paper solve request failed.");
+  const payload = await response.json();
+  return {
+    provider: "Google Gemini API",
+    solution: (payload.candidates?.[0]?.content?.parts || []).map((part) => part.text || "").join("\n").trim()
+  };
+}
+
+async function extractPdfText(buffer) {
+  const parser = new PDFParse({ data: buffer });
+  try {
+    const result = await parser.getText();
+    return String(result.text || "").trim();
+  } finally {
+    await parser.destroy();
+  }
+}
+
+async function extractPdfTextWithOcr(buffer) {
+  const parser = new PDFParse({ data: buffer });
+  let screenshotResult;
+  try {
+    screenshotResult = await parser.getScreenshot({ scale: 2, imageBuffer: true, imageDataUrl: false, first: 6 });
+  } finally {
+    await parser.destroy();
+  }
+
+  const worker = await createWorker("eng");
+  try {
+    const pageTexts = [];
+    for (const page of screenshotResult.pages || []) {
+      const result = await worker.recognize(Buffer.from(page.data));
+      const text = String(result.data?.text || "").trim();
+      if (text) pageTexts.push(text);
+    }
+    return pageTexts.join("\n\n").trim();
+  } finally {
+    await worker.terminate();
+  }
+}
+
+async function extractImageTextWithOcr(buffer) {
+  const worker = await createWorker("eng");
+  try {
+    const result = await worker.recognize(buffer);
+    return String(result.data?.text || "").trim();
+  } finally {
+    await worker.terminate();
+  }
+}
+
+async function extractReadableTextFromBuffer(buffer, mimeType = "") {
+  if (mimeType.startsWith("text/")) return buffer.toString("utf8").trim();
+  if (mimeType === "application/pdf") {
+    try {
+      const pdfText = await extractPdfText(buffer);
+      if (isReadablePaperText(pdfText)) return pdfText;
+    } catch {
+      // Fall back to OCR and lightweight extraction below.
+    }
+
+    try {
+      const ocrText = await extractPdfTextWithOcr(buffer);
+      if (isReadablePaperText(ocrText)) return ocrText;
+    } catch {
+      // Fall back to lightweight extraction below.
+    }
+  }
+  if (mimeType.startsWith("image/")) {
+    try {
+      const ocrText = await extractImageTextWithOcr(buffer);
+      if (isReadablePaperText(ocrText)) return ocrText;
+    } catch {
+      // Fall back to lightweight extraction below.
+    }
+  }
+
+  const raw = buffer.toString("latin1");
+  const textObjects = [...raw.matchAll(/\(([^()]{4,})\)\s*Tj/g), ...raw.matchAll(/\(([^()]{4,})\)/g)]
+    .map((match) => match[1].replace(/\\([()\\])/g, "$1"))
+    .join(" ");
+  const cleaned = textObjects
+    .replace(/\\[nr]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  if (cleaned.length > 500) return cleaned;
+
+  return raw
+    .replace(/[^\x20-\x7E]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 12000);
+}
+
+function isReadablePaperText(text) {
+  const value = String(text || "").trim();
+  if (value.length < 300) return false;
+
+  const letters = (value.match(/[a-z]/gi) || []).length;
+  const spaces = (value.match(/\s/g) || []).length;
+  const commonPaperWords = (value.match(/\b(question|answer|marks|solve|part|section|write|explain|define|calculate|draw|what|why|how)\b/gi) || []).length;
+  const binaryHints = (value.match(/\b(obj|endobj|xref|stream|endstream|filter|flatedecode|length)\b/gi) || []).length;
+
+  return letters / value.length > 0.35 && spaces / value.length > 0.08 && commonPaperWords >= 2 && binaryHints < 8;
+}
+
+function isUsefulPaperSolution(solution) {
+  const value = String(solution?.solution || "").toLowerCase();
+  if (!value.trim()) return false;
+  return ![
+    "corrupted or binary data",
+    "can't extract",
+    "cannot extract",
+    "properly formatted version",
+    "unreadable"
+  ].some((phrase) => value.includes(phrase));
+}
+
 function extractJsonObject(output) {
   const cleaned = output.replace(/```json|```/g, "").trim();
   const first = cleaned.indexOf("{");
@@ -336,6 +486,35 @@ async function callPollinationsText(text) {
     summary: output.trim(),
     flashcards: [],
     plan: []
+  };
+}
+
+async function callPollinationsPaper(text, title) {
+  const prompt = `Read this past paper text and solve it.
+Give only the solved paper in clear readable text.
+Keep question numbers and short step-by-step answers.
+
+Paper title: ${title}
+
+Past paper text:
+${text}`;
+
+  const response = await fetch("https://text.pollinations.ai/openai", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      model: process.env.POLLINATIONS_MODEL || "openai",
+      messages: [{ role: "user", content: prompt }],
+      temperature: 0.35,
+      private: true
+    })
+  });
+
+  if (!response.ok) throw new Error("Pollinations paper solve request failed.");
+  const payload = await response.json();
+  return {
+    provider: "Pollinations AI API",
+    solution: (payload.choices?.[0]?.message?.content || "").trim()
   };
 }
 
@@ -555,6 +734,60 @@ app.delete("/api/subjects/:subjectId/papers/:term/:paperId", requireUser, async 
   subject.papers[term] = subject.papers[term].filter((item) => item.id !== req.params.paperId);
   await writeDb(req.db);
   res.json({ ok: true });
+});
+
+app.post("/api/subjects/:subjectId/papers/:term/:paperId/solve", requireUser, async (req, res) => {
+  const term = req.params.term === "finals" ? "finals" : "midterm";
+  const subject = findSubject(req.db, req.params.subjectId);
+  if (!subject) return res.status(404).json({ error: "Subject not found." });
+
+  const paper = subject.papers[term]?.find((item) => item.id === req.params.paperId);
+  if (!paper) return res.status(404).json({ error: "Paper not found." });
+  if (paper.solution && !req.body?.refresh && isUsefulPaperSolution(paper.solution)) return res.json(paper.solution);
+
+  try {
+    let result = null;
+    let extractedText = "";
+
+    if (paper.fileUrl?.startsWith("/uploads/")) {
+      const filePath = path.join(__dirname, paper.fileUrl);
+      if (!filePath.startsWith(UPLOAD_DIR)) return res.status(400).json({ error: "Invalid uploaded paper path." });
+      const buffer = await fs.readFile(filePath);
+      const paperMimeType = paper.mimeType || (paper.fileName?.toLowerCase().endsWith(".pdf") ? "application/pdf" : "application/octet-stream");
+
+      try {
+        result = await callGeminiPaper({ title: paper.title, mimeType: paperMimeType, buffer });
+      } catch {
+        result = null;
+      }
+
+      if (!result?.solution) {
+        extractedText = await extractReadableTextFromBuffer(buffer, paperMimeType);
+      }
+    } else if (paper.url) {
+      extractedText = `Solve this past paper from the provided link. Link: ${paper.url}`;
+    }
+
+    if (!result?.solution && isReadablePaperText(extractedText)) {
+      result = await callPollinationsPaper(extractedText.slice(0, 18000), paper.title);
+    }
+
+    if (!isUsefulPaperSolution(result)) {
+      return res.status(503).json({
+        error: "AI could not read this paper from the uploaded file. Add GEMINI_API_KEY for scanned PDFs/images, or upload a text-based PDF."
+      });
+    }
+
+    paper.solution = {
+      provider: result.provider,
+      solution: result.solution,
+      solvedAt: now()
+    };
+    await writeDb(req.db);
+    res.json(paper.solution);
+  } catch {
+    res.status(503).json({ error: "AI solving is unavailable right now. Try again later or set GEMINI_API_KEY." });
+  }
 });
 
 app.post("/api/subjects/:subjectId/resources", requireUser, async (req, res) => {

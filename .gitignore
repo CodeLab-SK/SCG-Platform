@@ -1,0 +1,10 @@
+node_modules/
+
+*.log
+chrome-debug-*/
+
+server/uploads/
+*.traineddata
+
+.env
+.env.*

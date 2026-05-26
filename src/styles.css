@@ -403,7 +403,7 @@ code {
 }
 
 .columns {
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
 }
 
 .resourceList,
@@ -427,9 +427,21 @@ code {
 
 .resourceItem {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr);
   align-items: start;
   gap: 8px;
+}
+
+.resourceActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-start;
+}
+
+.resourceActions button:not(.iconButton) {
+  min-height: 38px;
+  padding: 9px 11px;
 }
 
 .resourceViewer {
@@ -452,6 +464,14 @@ code {
 .resourceViewer > div:first-child {
   display: grid;
   gap: 2px;
+  min-height: 46px;
+}
+
+.resourceViewer b,
+.resourceViewer span {
+  overflow-wrap: break-word;
+  word-break: normal;
+  hyphens: auto;
 }
 
 .resourceViewer span {
@@ -549,6 +569,30 @@ code {
   text-align: center;
 }
 
+.solutionStage {
+  min-height: 0;
+  padding: 18px;
+  overflow: auto;
+  background: #eef4f1;
+}
+
+.solutionPaper {
+  width: min(960px, 100%);
+  margin: 0 auto;
+  background: #ffffff;
+  border: 1px solid #d4e1dc;
+  border-radius: 8px;
+  padding: 22px;
+}
+
+.solutionPaper pre {
+  margin: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-family: inherit;
+  color: #172026;
+}
+
 .videoStage video {
   min-width: 280px;
   min-height: 180px;
@@ -619,6 +663,11 @@ code {
   height: 38px;
   padding: 0;
   flex: 0 0 auto;
+}
+
+button:disabled {
+  opacity: .62;
+  cursor: wait;
 }
 
 .dangerButton {

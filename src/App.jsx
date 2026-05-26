@@ -601,8 +601,27 @@ function SubjectForm({ onCreate }) {
 
 function ResourceManager({ subject, currentUser, canDelete, onDelete, refreshAfter }) {
   const [activeResource, setActiveResource] = useState(null);
+  const [activeSolution, setActiveSolution] = useState(null);
+  const [solvingId, setSolvingId] = useState("");
+  const [solveError, setSolveError] = useState("");
   const canDeleteResource = (item) => currentUser && (currentUser.role === "admin" || item.addedByEmail === currentUser.email || subject.createdBy === currentUser.email);
   const deleteResource = (path) => refreshAfter(request(path, { method: "DELETE" }), "Upload deleted").then(() => setActiveResource(null));
+  const solvePaper = async (item, term) => {
+    setSolveError("");
+    if (item.solution) {
+      setActiveSolution({ item, solution: item.solution });
+      return;
+    }
+    setSolvingId(item.id);
+    try {
+      const solution = await request(`/api/subjects/${subject.id}/papers/${term}/${item.id}/solve`, { method: "POST", body: JSON.stringify({}) });
+      setActiveSolution({ item, solution });
+    } catch (error) {
+      setSolveError(error.message);
+    } finally {
+      setSolvingId("");
+    }
+  };
 
   return (
     <div className="resourceArea">
@@ -613,13 +632,15 @@ function ResourceManager({ subject, currentUser, canDelete, onDelete, refreshAft
         <ResourceForm label="Note" icon={FileText} accept="application/pdf,image/*,text/plain" onCreate={(body) => refreshAfter(uploadFile(`/api/subjects/${subject.id}/resources/upload?type=notes`, body), "Note uploaded")} />
         <ResourceForm label="Video" icon={Video} accept="video/*" onCreate={(body) => refreshAfter(uploadFile(`/api/subjects/${subject.id}/resources/upload?type=videos`, body), "Video uploaded")} />
       </Gate>
+      {solveError && <span className="formError">{solveError}</span>}
       <div className="columns">
-        <ResourceList title="Midterms" items={subject.papers.midterm} kind="document" onOpen={setActiveResource} canDelete={canDeleteResource} onDelete={(item) => deleteResource(`/api/subjects/${subject.id}/papers/midterm/${item.id}`)} />
-        <ResourceList title="Finals" items={subject.papers.finals} kind="document" onOpen={setActiveResource} canDelete={canDeleteResource} onDelete={(item) => deleteResource(`/api/subjects/${subject.id}/papers/finals/${item.id}`)} />
+        <ResourceList title="Midterms" items={subject.papers.midterm} kind="document" onOpen={setActiveResource} canDelete={canDeleteResource} onDelete={(item) => deleteResource(`/api/subjects/${subject.id}/papers/midterm/${item.id}`)} onSolve={(item) => solvePaper(item, "midterm")} solvingId={solvingId} />
+        <ResourceList title="Finals" items={subject.papers.finals} kind="document" onOpen={setActiveResource} canDelete={canDeleteResource} onDelete={(item) => deleteResource(`/api/subjects/${subject.id}/papers/finals/${item.id}`)} onSolve={(item) => solvePaper(item, "finals")} solvingId={solvingId} />
         <ResourceList title="Notes" items={subject.notes} kind="document" onOpen={setActiveResource} canDelete={canDeleteResource} onDelete={(item) => deleteResource(`/api/subjects/${subject.id}/resources/notes/${item.id}`)} />
         <ResourceList title="Videos" items={subject.videos} kind="video" onOpen={setActiveResource} canDelete={canDeleteResource} onDelete={(item) => deleteResource(`/api/subjects/${subject.id}/resources/videos/${item.id}`)} />
       </div>
       {activeResource && <ResourceModal resource={activeResource} onClose={() => setActiveResource(null)} />}
+      {activeSolution && <SolutionModal item={activeSolution.item} solution={activeSolution.solution} onClose={() => setActiveSolution(null)} />}
     </div>
   );
 }
@@ -654,18 +675,26 @@ function ResourceForm({ label, icon: Icon, accept, onCreate }) {
   );
 }
 
-function ResourceList({ title, items, kind, onOpen, canDelete, onDelete }) {
+function ResourceList({ title, items, kind, onOpen, canDelete, onDelete, onSolve, solvingId }) {
   return (
     <div className="resourceList">
       <strong>{title}</strong>
       {items.length ? items.map((item) => (
         <article className="resourceItem" key={item.id}>
           <ResourceViewer item={item} kind={kind} onOpen={onOpen} />
-          {canDelete(item) && (
-            <button className="iconButton dangerButton" onClick={() => onDelete(item)} title="Delete upload" aria-label={`Delete ${item.title}`}>
-              <Trash2 size={17} />
-            </button>
-          )}
+          <div className="resourceActions">
+            {onSolve && (
+              <button onClick={() => onSolve(item)} disabled={solvingId === item.id} title="Solve PastPaper">
+                <Sparkles size={17} />
+                <span>{solvingId === item.id ? "Solving" : "Solve PastPaper"}</span>
+              </button>
+            )}
+            {canDelete(item) && (
+              <button className="iconButton dangerButton" onClick={() => onDelete(item)} title="Delete upload" aria-label={`Delete ${item.title}`}>
+                <Trash2 size={17} />
+              </button>
+            )}
+          </div>
         </article>
       )) : <span>No uploads yet</span>}
     </div>
@@ -754,6 +783,39 @@ function ResourceModal({ resource, onClose }) {
         ) : (
           <span>Upload unavailable</span>
         )}
+      </div>
+    </div>
+  );
+}
+
+function SolutionModal({ item, solution, onClose }) {
+  useEffect(() => {
+    const handleKeyDown = (event) => {
+      if (event.key === "Escape") onClose();
+    };
+    document.body.classList.add("modalOpen");
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.body.classList.remove("modalOpen");
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [onClose]);
+
+  return (
+    <div className="resourceModal" role="dialog" aria-modal="true" aria-label={`${item.title} solution`}>
+      <header>
+        <div>
+          <strong>{item.title} solution</strong>
+          <span>{solution.provider} / {solution.solvedAt ? new Date(solution.solvedAt).toLocaleString() : "Generated now"}</span>
+        </div>
+        <div className="viewerActions">
+          <button className="iconButton" onClick={onClose} title="Close solution" aria-label="Close solution"><X size={20} /></button>
+        </div>
+      </header>
+      <div className="solutionStage">
+        <article className="solutionPaper">
+          <pre>{solution.solution}</pre>
+        </article>
       </div>
     </div>
   );

@@ -17,11 +17,12 @@
     "express": "latest",
     "lucide-react": "latest",
     "nanoid": "latest",
+    "pdf-parse": "^2.4.5",
+    "react": "latest",
+    "react-dom": "latest",
     "socket.io": "latest",
     "socket.io-client": "latest",
-    "vite": "latest",
-    "react": "latest",
-    "react-dom": "latest"
-  },
-  "devDependencies": {}
+    "tesseract.js": "^7.0.0",
+    "vite": "latest"
+  }
 }

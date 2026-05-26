@@ -1,0 +1,5 @@
+
+> ssg-study-platform@1.0.0 server
+> node server/index.js
+
+API and realtime server running on http://localhost:4000

@@ -42,48 +42,29 @@
               "papers": {
                 "midterm": [
                   {
-                    "id": "GLRTSkMOp90fjyH-NZ65l",
-                    "title": "midterm",
+                    "id": "VbVLrOYdunZYj52A8w8HF",
+                    "title": "2022",
                     "fileName": "Web Engineeing Past Paper Spring 2022.pdf",
-                    "fileUrl": "/uploads/papers/GLRTSkMOp90fjyH-NZ65l-Web-Engineeing-Past-Paper-Spring-2022.pdf",
+                    "fileUrl": "/uploads/papers/VbVLrOYdunZYj52A8w8HF-Web-Engineeing-Past-Paper-Spring-2022.pdf",
                     "mimeType": "application/pdf",
                     "addedBy": "Sahil Admin",
                     "addedByEmail": "sahilisthebest885@gmail.com",
-                    "createdAt": "2026-05-26T14:35:55.205Z",
-                    "solution": {
-                      "provider": "Pollinations AI API",
-                      "solution": "**Solved Mid‑Term Paper – Web Engineering (SWE‑315)**  \n\n---\n\n## Q.1  (2.574 = 10)  \n*Scenario: a simple video‑portal web application that lets registered users buy and download albums.*\n\n| # | Diagram / Model | Key Elements & How to Draw (textual description) |\n|---|-----------------|---------------------------------------------------|\n| a | **Use‑Case Diagram** | 1. **Actors**: *Unregistered User*, *Registered User*, *Administrator* (optional).  <br>2. **Use‑Cases**: <br>• *Register* (Unregistered → Registered) <br>• *Login* (Unregistered → Registered) <br>• *Search Album* (Both) <br>• *View Album Details* (Both) <br>• *Buy Album* (Registered) <br>• *Download Album* (Registered, only if purchased) <br>• *Recharge Credit* (Registered) <br>• *View Account* (Registered) <br>• *Logout* (Both) <br>3. **Relationships**: <br>• *Include*: *Login* → *Search Album* (search only after login). <br>• *Extend*: *Buy Album* → *Recharge Credit* (if insufficient balance). |\n| b | **Activity Diagram (Buying an Album)** | 1. **Start** → 2. *User selects album* → 3. *System shows album detail* → 4. *Check purchase status* → 5a. *If already bought → show “Download”* → 5b. *If not bought → show “Buy”* → 6. *User clicks “Buy”* → 7. *System checks credit balance* → 8a. *If sufficient → deduct price, mark album as purchased, show “Download”* → 8b. *If insufficient → prompt “Recharge Credit”* → 9. *End*. |\n| c | **Content Structure Model** | 1. *Home Page* – search box, navigation links. <br>2. *Search Results Page* – list of albums (title, artist, price). <br>3. *Album Detail Page* – title, artist, track list, price, “Buy” or “Download” button. <br>4. *Account Page* – credit balance, purchase history. <br>5. *Login / Register Page* – form fields. |\n| d | **Navigation Structure Model** | 1. **Top‑bar**: *Home*, *Search*, *Account*, *Login/Logout* (always visible). <br>2. **Breadcrumbs** on detail pages: *Home > Album Title*. <br>3. **Footer**: links to *Terms*, *Privacy*, *Contact*. <br>4. **Dynamic links**: “Buy” or “Download” appear based on purchase status. |\n\n---\n\n## Q.2  (3 × 2.5 = 7.5)  \n\n| # | Question | Answer |\n|---|----------|--------|\n| a | **Which framework or library would be suitable for the scenario?** | **React** (or Vue/Angular). React is lightweight, component‑based, and works well for a single‑page application that needs dynamic UI updates (e.g., showing “Buy” vs. “Download”). |\n| b | **What kind of web application would you create, SPA or MPA?** | **Single‑Page Application (SPA)** – all interactions happen on one page; only data is fetched via AJAX, giving a smoother user experience. |\n| c | **List down client‑side and server‑side languages which you may use while developing this application.** | **Client‑side**: JavaScript (ES6+), HTML5, CSS3 (with a pre‑processor like SASS). <br>**Server‑side**: Node.js with Express (JavaScript), or alternatively Python (Django/Flask), Java (Spring Boot), or C# (.NET Core). |\n\n---\n\n## Q.3  (3 × 2.5 = 7.5)  \n\n| # | Question | Short Answer |\n|---|----------|--------------|\n| a | **How does JavaScript perform Type Coercion/Type Casting?** | JavaScript does *implicit coercion* when operators need a specific type (e.g., `1 + \"2\"` → `\"12\"`). It also has *explicit casting* via constructors (`Number(\"5\")`, `String(true)`) or unary `+`/`!`. |\n| b | **Write web‑related solution for given problem occurring during web application development: if budget overruns or failure to meet business objectives?** | Adopt *Agile* practices: split work into small sprints, hold daily stand‑ups, use burn‑down charts to track budget, and perform *continuous integration* to catch defects early. If objectives slip, conduct a *scope‑review* with stakeholders, re‑prioritize backlog items, and consider *feature toggles* to release core functionality first. |\n| c | **Explain any method of elicitation and negotiation in requirements collection process.** | **Prototyping**: build a low‑fidelity mock‑up and let stakeholders interact with it. This surface‑level feedback helps negotiate priorities and clarifies ambiguities before detailed design. |\n\n---\n\n## Q.4  (5 points) – JavaScript Code  \n\n```html\n<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n<meta charset=\"UTF-8\">\n<title>Course Table</title>\n<style>\n  table { width: 100%; border-collapse: collapse; margin-bottom: 1rem; }\n  th, td { border: 1px solid #ccc; padding: 0.5rem; text-align: left; }\n  button { margin-right: 0.",
-                      "solvedAt": "2026-05-26T14:49:45.383Z"
-                    }
-                  },
-                  {
-                    "id": "l3pHoKFxfit4JRw_Kf-Hg",
-                    "title": "2021",
-                    "fileName": "Web Engineeing Past Paper Fall 2021.pdf",
-                    "fileUrl": "/uploads/papers/l3pHoKFxfit4JRw_Kf-Hg-Web-Engineeing-Past-Paper-Fall-2021.pdf",
-                    "mimeType": "application/pdf",
-                    "addedBy": "Sahil Admin",
-                    "addedByEmail": "sahilisthebest885@gmail.com",
-                    "createdAt": "2026-05-26T14:41:09.857Z"
+                    "createdAt": "2026-05-31T14:12:45.298Z"
                   }
                 ],
-                "finals": [
-                  {
-                    "id": "NtvQ3eS8ymBHsWbyjTtm2",
-                    "title": "2023",
-                    "fileName": "Web Engineeing Past Paper Spring 2023.pdf",
-                    "fileUrl": "/uploads/papers/NtvQ3eS8ymBHsWbyjTtm2-Web-Engineeing-Past-Paper-Spring-2023.pdf",
-                    "mimeType": "application/pdf",
-                    "addedBy": "Sahil Admin",
-                    "addedByEmail": "sahilisthebest885@gmail.com",
-                    "createdAt": "2026-05-26T14:42:05.372Z",
-                    "solution": {
-                      "provider": "Pollinations AI API",
-                      "solution": "**Solved Paper – 2023 Mid‑Term – Web Engineering**\n\n---\n\n### Q.1 – Brief Answers (4 × 2.5 = 10 pts)\n\n**A. Guidelines for successful Web‑application development**  \n1. **Requirements & User‑Centric Design** – gather clear functional & non‑functional needs; involve real users.  \n2. **Modular Architecture** – separate concerns (presentation, business logic, data access).  \n3. **Responsive & Accessible UI** – use fluid layouts, semantic HTML, ARIA roles.  \n4. **Security & Privacy** – validate inputs, use HTTPS, protect credentials, follow OWASP guidelines.  \n5. **Performance & Scalability** – cache static assets, minify resources, use CDNs, load‑balancing.  \n6. **Testing & Continuous Integration** – unit, integration, end‑to‑end tests; automated pipelines.  \n7. **Deployment & Monitoring** – containerise, use CI/CD, log, monitor, rollback strategy.  \n\n**B. SPA vs MPA – key characteristics**  \n| Feature | SPA | MPA |\n|---------|-----|-----|\n| Page load | Single HTML page; subsequent navigation via JS | Full page reload for each navigation |\n| Navigation speed | Very fast after initial load | Slower due to full reload |\n| SEO | Requires prerendering or SSR | Naturally SEO‑friendly |\n| State management | Client‑side state (Redux, Context) | Server‑side state (sessions) |\n| Development complexity | Higher JS complexity | Simpler server‑side routing |\n| Use‑case | Rich interactive apps (mail, dashboards) | Content‑heavy sites (news, e‑commerce) |\n\n**C. Contextual vs Non‑contextual links**  \n- **Contextual link** – URL contains context (e.g., `/movies/1234`) so the server can directly fetch the resource.  \n- **Non‑contextual link** – generic URL with query parameters or no identifier (e.g., `/movies?search=action`) requiring the server to interpret the request.  \n\n**D. Explicit type conversions in JavaScript**  \n1. **Number()** – converts value to a number (e.g., `Number('42')`).  \n2. **String()** – converts value to a string (e.g., `String(42)`).  \n3. **Boolean()** – converts value to a boolean (e.g., `Boolean('')`).  \n4. **parseInt() / parseFloat()** – parse numeric strings, optionally with radix.  \n5. **Unary plus (`+`)** – quick numeric conversion (e.g., `+'42'`).  \n\n---\n\n### Q.2 – Working of the WebML diagram (Insert Comment page)\n\n1. **User selects a movie** → the system retrieves the movie’s ID (`MovieID`).  \n2. **Insert Comment form** is displayed with a textarea for the comment and a submit button.  \n3. **On submit**:  \n   - The form data (`UserComment`) is sent to the server via an HTTP POST.  \n   - The server creates a new `Comment` entity linked to the `Movie` (`MovieID`) and the `User` (`UserID`).  \n4. **Feedback**: After successful insertion, the page refreshes or updates the comment list to show the newly added comment.  \n\n---\n\n### Q.3 – UWE Modelling (10 pts)\n\n#### a. Content Structure Model  \n- **Entities**  \n  - `User` (id, username, email, password, role)  \n  - `Movie` (id, title, year, description, genre, photo)  \n  - `Person` (id, name, birthday, birthplace, photo)  \n  - `Theatre` (id, address, showrooms, performances)  \n  - `Comment` (id, text, rating, timestamp, user_id, movie_id)  \n  - `Ticket` (id, seat, showtime, price, user_id, movie_id, theatre_id)  \n  - `Favorite` (user_id, movie_id)  \n- **Relationships**  \n  - `User` – 1..* `Comment` (one user can comment many times)  \n  - `User` – 1..* `Ticket`  \n  - `User` – 1..* `Favorite`  \n  - `Movie` – 1..* `Comment`  \n  - `Movie` – 1..* `Ticket`  \n  - `Movie` – 1..* `Person` (cast/crew)  \n  - `Theatre` – 1..* `Performance` – 1..* `Ticket`  \n\n#### b. Navigation Model  \n- **Top‑level pages**  \n  1. **Home** – search bar, featured movies.  \n  2. **Movies** – list + filter; each movie links to its *Movie Detail* page.  \n  3. **People** – list; each person links to *Person Detail* page.  \n  4. **Theatres** – list; each theatre links to *Theatre Detail* page.  \n  5. **Login / Register** – authentication pages.  \n  6. **My Account** – profile, favorites, purchase history.  \n\n- **Secondary pages**  \n  - *Movie Detail* → tabs: Overview, Cast, Soundtrack, Reviews, Buy Ticket.  \n  - *Person Detail* → Biography, Filmography.  \n  - *Theatre Detail* → Address, Showrooms, Upcoming Performances.  \n  - *Ticket Purchase* → Seat selection, payment.  \n\n- **Navigation flow**  \n  1. Unregistered → Home → Search → Movie Detail → Register/Login → Buy Ticket.  \n  2. Registered → Home → Search → Movie Detail → Comment / Rate → My Account.  \n\n---\n\n### Q.4 – Welcome‑Message Page (5 pts)\n\n```html\n<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n<meta charset=\"UTF-8\">\n<title>Welcome Page</title>\n<style>\n  body { font-family: Arial, sans-serif; margin: 2rem; }\n  #msg { margin-top: 1rem; font-weight: bold; }\n</style>\n</head>\n<body>\n<h2>Enter your name</h2>\n<input type=\"text\" id=\"nameInput\" placeholder=\"Full Name\">\n<button id=\"submitBtn\">Submit</button>\n<div id=\"msg\"></div>\n\n<script>\ndocument.getElementById('submitBtn').addEventListener('click', () => {\n  const name = document.getElementById('nameInput').value.trim();\n  const msgDiv = document.getElementById('msg');\n  if (name.length >",
-                      "solvedAt": "2026-05-26T14:56:41.026Z"
-                    }
-                  }
-                ]
+                "finals": []
+              },
+              "notes": [],
+              "videos": []
+            },
+            {
+              "id": "bjb8VSFGQDAFE77Bz-jxj",
+              "name": "BPE",
+              "createdAt": "2026-05-26T15:52:36.055Z",
+              "createdBy": "sahilisthebest885@gmail.com",
+              "papers": {
+                "midterm": [],
+                "finals": []
               },
               "notes": [],
               "videos": []
@@ -148,6 +129,54 @@
           "subjects": []
         }
       ]
+    },
+    {
+      "id": "Lku5v_MM6T5_B-tozjcIc",
+      "name": "Ai",
+      "createdAt": "2026-05-26T15:52:19.455Z",
+      "createdBy": "sahilisthebest885@gmail.com",
+      "semesters": [
+        {
+          "id": "lGgyoagRXf6ADIztU8IWw",
+          "number": 1,
+          "subjects": []
+        },
+        {
+          "id": "2Jn6mE-MZ8jV1QAg7ZHhu",
+          "number": 2,
+          "subjects": []
+        },
+        {
+          "id": "9aSwxQ7vtoJX9naYUxb3r",
+          "number": 3,
+          "subjects": []
+        },
+        {
+          "id": "uRHXfd5KljFVLma1Hk_zg",
+          "number": 4,
+          "subjects": []
+        },
+        {
+          "id": "QEVOE8kQM9_61A1uScfLP",
+          "number": 5,
+          "subjects": []
+        },
+        {
+          "id": "MdHsA-iHBsT4p_PQirki_",
+          "number": 6,
+          "subjects": []
+        },
+        {
+          "id": "q8nBQrxe_rMRv4zRnQ6R_",
+          "number": 7,
+          "subjects": []
+        },
+        {
+          "id": "e5R4UcaQUeT2cgK5cKU-n",
+          "number": 8,
+          "subjects": []
+        }
+      ]
     }
   ],
   "workspaces": [],
@@ -190,7 +219,7 @@
       "name": "Sahil Admin",
       "email": "sahilisthebest885@gmail.com",
       "password": "sahil@885",
-      "role": "admin",
+      "role": "owner",
       "provider": "google",
       "googleVerified": true,
       "token": "DkjheuFzP_1DiYIbRA6_1b2laPgm_4S1",

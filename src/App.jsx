@@ -22,6 +22,7 @@ import {
   ScreenShareOff,
   Search,
   Server,
+  Settings,
   ShieldCheck,
   Sparkles,
   Trash2,
@@ -79,6 +80,20 @@ async function requestBlob(path, token = localStorage.getItem("ssg_token")) {
   return response.blob();
 }
 
+async function uploadBlob(path, blob, token = localStorage.getItem("ssg_token")) {
+  const response = await fetch(`${API_URL}${path}`, {
+    method: "POST",
+    headers: {
+      "Content-Type": blob.type || "application/octet-stream",
+      ...(token ? { Authorization: `Bearer ${token}` } : {})
+    },
+    body: blob
+  });
+  const payload = await response.json();
+  if (!response.ok) throw new Error(payload.error || "Request failed");
+  return payload;
+}
+
 const AI_DESTINATIONS = [
   ["ChatGPT", "https://chatgpt.com/"],
   ["Gemini", "https://gemini.google.com/"],
@@ -101,6 +116,8 @@ function App() {
   const [messageFeed, setMessageFeed] = useState([]);
   const [aiResult, setAiResult] = useState(null);
   const [notice, setNotice] = useState("");
+  const [authOpen, setAuthOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
 
   const load = async () => {
     try {
@@ -125,24 +142,30 @@ function App() {
   }, []);
 
   useEffect(() => {
-    if (!GOOGLE_CLIENT_ID || !window.google || currentUser) return;
+    if (!GOOGLE_CLIENT_ID || !window.google || currentUser || !authOpen) return;
+    const googleSlot = document.getElementById("google-login");
+    if (!googleSlot) return;
     window.google.accounts.id.initialize({
       client_id: GOOGLE_CLIENT_ID,
       callback: async ({ credential }) => {
         const result = await request("/api/auth/google", { method: "POST", body: JSON.stringify({ credential }) }, "");
         localStorage.setItem("ssg_token", result.token);
+        setAuthOpen(false);
         await load();
       }
     });
-    window.google.accounts.id.renderButton(document.getElementById("google-login"), { theme: "outline", size: "large", width: 280 });
-  }, [currentUser]);
+    window.google.accounts.id.renderButton(googleSlot, { theme: "outline", size: "large", width: 280 });
+  }, [currentUser, authOpen]);
 
   const activeDepartment = data?.departments.find((item) => item.id === activeDepartmentId);
   const activeSemester = activeDepartment?.semesters.find((item) => item.id === activeSemesterId) || activeDepartment?.semesters[0];
   const activeSubject = activeSemester?.subjects.find((item) => item.id === activeSubjectId) || activeSemester?.subjects[0];
   const activeWorkspace = data?.workspaces.find((item) => item.id === activeWorkspaceId);
   const workspaceMessages = messageFeed.filter((message) => message.workspaceId === (activeWorkspace?.id || "global"));
-  const isAdmin = currentUser?.role === "admin";
+  const users = Array.isArray(data?.users) ? data.users : [];
+  const isOwner = currentUser?.role === "owner";
+  const isAdmin = ["owner", "admin"].includes(currentUser?.role);
+  const adminCount = users.filter((user) => user.role === "admin").length;
 
   useEffect(() => {
     if (activeSemester?.id) setActiveSemesterId(activeSemester.id);
@@ -171,6 +194,12 @@ function App() {
     load();
   };
 
+  const handleLogin = async (result) => {
+    localStorage.setItem("ssg_token", result.token);
+    setAuthOpen(false);
+    await load();
+  };
+
   const leaveMeeting = () => setActiveMeeting(null);
 
   if (!data) {
@@ -189,7 +218,8 @@ function App() {
           <span className="brandMark">SSG</span>
           <div>
             <strong>Study Sphere</strong>
-            <small>Realtime campus SaaS</small>
+            <small>Realtime</small>
+            <small>campus SaaS</small>
           </div>
         </div>
         <nav>
@@ -206,6 +236,12 @@ function App() {
               <span>{label}</span>
             </a>
           ))}
+          {isOwner && (
+            <button className="sidebarAction" onClick={() => setSettingsOpen(true)}>
+              <Settings size={18} />
+              <span>Settings</span>
+            </button>
+          )}
         </nav>
       </aside>
 
@@ -215,28 +251,31 @@ function App() {
             <p>Study operations platform</p>
             <h1>Servers, live classes, authenticated resources, and AI learning in one workspace.</h1>
           </div>
-          <div className="accountCard">
+          <div className="accountMenu">
             {currentUser ? (
-              <>
+              <div className="accountCard">
                 <ShieldCheck size={18} />
                 <div>
                   <strong>{currentUser.name}</strong>
                   <span>{currentUser.email} · {currentUser.role}</span>
                 </div>
                 <button className="iconButton" onClick={logout} title="Logout"><LogOut size={17} /></button>
-              </>
+              </div>
             ) : (
-              <LoginBox onLogin={async (result) => { localStorage.setItem("ssg_token", result.token); await load(); }} />
+              <button onClick={() => setAuthOpen(true)}><LogIn size={17} />Login</button>
             )}
           </div>
         </header>
+
+        {authOpen && <AuthModal onClose={() => setAuthOpen(false)} onLogin={handleLogin} />}
+        {settingsOpen && <OwnerSettingsModal users={users} refreshAfter={refreshAfter} onClose={() => setSettingsOpen(false)} />}
 
         {notice && <div className="notice">{notice}</div>}
 
         <section className="metrics">
           <Metric icon={Server} label="Servers" value={data.workspaces.length} />
-          <Metric icon={Video} label="Live sessions" value={data.sessions.length} />
-          <Metric icon={CheckCircle2} label="Productivity" value={`${productivity.score}%`} />
+          <Metric icon={Users} label="Registered users" value={users.length} />
+          <Metric icon={ShieldCheck} label="Admins" value={adminCount} />
           <Metric icon={Library} label="Departments" value={data.departments.length} />
         </section>
 
@@ -391,6 +430,35 @@ function App() {
   );
 }
 
+function AuthModal({ onClose, onLogin }) {
+  useEffect(() => {
+    const handleKeyDown = (event) => {
+      if (event.key === "Escape") onClose();
+    };
+    document.body.classList.add("modalOpen");
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.body.classList.remove("modalOpen");
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [onClose]);
+
+  return (
+    <div className="authModal" role="dialog" aria-modal="true" aria-label="Login or register">
+      <div className="authDialog">
+        <header>
+          <div>
+            <strong>Welcome to Study Sphere</strong>
+            <span>Login or create your student account.</span>
+          </div>
+          <button className="iconButton" onClick={onClose} title="Close login" aria-label="Close login"><X size={20} /></button>
+        </header>
+        <LoginBox onLogin={onLogin} />
+      </div>
+    </div>
+  );
+}
+
 function LoginBox({ onLogin }) {
   const [mode, setMode] = useState("login");
   const [name, setName] = useState("");
@@ -418,7 +486,7 @@ function LoginBox({ onLogin }) {
 
 function ServerRoom({ workspace, messages, sessions, currentUser, refreshAfter, onEnterClass, onDelete, onLeave }) {
   const isOwner = currentUser && workspace.createdBy === currentUser.email;
-  const isAdmin = currentUser?.role === "admin";
+  const isAdmin = ["owner", "admin"].includes(currentUser?.role);
   const isMember = currentUser && workspace.members?.some((member) => member.email === currentUser.email);
 
   return (
@@ -458,6 +526,64 @@ function ServerRoom({ workspace, messages, sessions, currentUser, refreshAfter, 
           </article>
         ))}
       </div>
+    </div>
+  );
+}
+
+function OwnerSettingsModal({ users, refreshAfter, onClose }) {
+  useEffect(() => {
+    const handleKeyDown = (event) => {
+      if (event.key === "Escape") onClose();
+    };
+    document.body.classList.add("modalOpen");
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.body.classList.remove("modalOpen");
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [onClose]);
+
+  return (
+    <div className="authModal" role="dialog" aria-modal="true" aria-label="Owner settings">
+      <div className="settingsDialog">
+        <header>
+          <div>
+            <strong>Owner Settings</strong>
+            <span>Manage registered users and admin access.</span>
+          </div>
+          <button className="iconButton" onClick={onClose} title="Close settings" aria-label="Close settings"><X size={20} /></button>
+        </header>
+        <OwnerSettings users={users} refreshAfter={refreshAfter} />
+      </div>
+    </div>
+  );
+}
+
+function OwnerSettings({ users, refreshAfter }) {
+  return (
+    <div className="ownerSettings">
+      {users.map((user) => (
+        <article className="userRow" key={user.id}>
+          <div>
+            <strong>{user.name}</strong>
+            <span>{user.email}</span>
+          </div>
+          <code>{user.role}</code>
+          {user.role === "owner" ? (
+            <span>Owner account</span>
+          ) : user.role === "admin" ? (
+            <div className="rowActions">
+              <button className="dangerButton" onClick={() => refreshAfter(request(`/api/users/${user.id}/role`, { method: "PATCH", body: JSON.stringify({ role: "student" }) }), "Admin removed")}>Remove admin</button>
+              <button className="dangerButton" onClick={() => refreshAfter(request(`/api/users/${user.id}`, { method: "DELETE" }), "User removed")}>Remove user</button>
+            </div>
+          ) : (
+            <div className="rowActions">
+              <button onClick={() => refreshAfter(request(`/api/users/${user.id}/role`, { method: "PATCH", body: JSON.stringify({ role: "admin" }) }), "Admin added")}>Add admin</button>
+              <button className="dangerButton" onClick={() => refreshAfter(request(`/api/users/${user.id}`, { method: "DELETE" }), "User removed")}>Remove user</button>
+            </div>
+          )}
+        </article>
+      ))}
     </div>
   );
 }
@@ -628,7 +754,7 @@ function ResourceManager({ subject, currentUser, canDelete, onDelete, refreshAft
   const [activeSolution, setActiveSolution] = useState(null);
   const [solvingId, setSolvingId] = useState("");
   const [solveError, setSolveError] = useState("");
-  const canDeleteResource = (item) => currentUser && (currentUser.role === "admin" || item.addedByEmail === currentUser.email || subject.createdBy === currentUser.email);
+  const canDeleteResource = (item) => currentUser && (["owner", "admin"].includes(currentUser.role) || item.addedByEmail === currentUser.email || subject.createdBy === currentUser.email);
   const deleteResource = (path) => refreshAfter(request(path, { method: "DELETE" }), "Upload deleted").then(() => setActiveResource(null));
   const solvePaper = async (item, term) => {
     setSolveError("");
@@ -727,15 +853,17 @@ function ResourceList({ title, items, kind, onOpen, canDelete, onDelete, onSolve
 
 function getResourceDetails(item, kind) {
   const src = item.fileUrl ? `${API_URL}${item.fileUrl}` : item.url;
+  const isPdf = item.mimeType === "application/pdf" || item.fileName?.toLowerCase().endsWith(".pdf") || item.fileUrl?.toLowerCase().endsWith(".pdf");
   return {
     src,
+    isPdf,
     isVideo: kind === "video" || item.mimeType?.startsWith("video/"),
     isImage: item.mimeType?.startsWith("image/")
   };
 }
 
 function ResourceViewer({ item, kind, onOpen }) {
-  const { src, isVideo, isImage } = getResourceDetails(item, kind);
+  const { src, isPdf, isVideo, isImage } = getResourceDetails(item, kind);
 
   return (
     <button className="resourceViewer" onClick={() => onOpen({ item, kind })}>
@@ -749,8 +877,16 @@ function ResourceViewer({ item, kind, onOpen }) {
             <video src={src} muted preload="metadata" onContextMenu={(event) => event.preventDefault()} />
           ) : isImage ? (
             <img src={src} alt="" onContextMenu={(event) => event.preventDefault()} />
+          ) : isPdf ? (
+            <div className="documentPreview">
+              <FileText size={34} />
+              <span>PDF</span>
+            </div>
           ) : (
-            <iframe src={`${src}#toolbar=0&navpanes=0&page=1`} title={`${item.title} preview`} tabIndex="-1" />
+            <div className="documentPreview">
+              <FileText size={34} />
+              <span>Document</span>
+            </div>
           )}
         </div>
       ) : (
@@ -762,7 +898,7 @@ function ResourceViewer({ item, kind, onOpen }) {
 
 function ResourceModal({ resource, onClose }) {
   const { item, kind } = resource;
-  const { src, isVideo, isImage } = getResourceDetails(item, kind);
+  const { src, isPdf, isVideo, isImage } = getResourceDetails(item, kind);
   const [zoom, setZoom] = useState(1);
   const [scanOpen, setScanOpen] = useState(false);
 
@@ -799,20 +935,66 @@ function ResourceModal({ resource, onClose }) {
           <button className="iconButton" onClick={onClose} title="Close viewer" aria-label="Close viewer"><X size={20} /></button>
         </div>
       </header>
-      {scanOpen && <ScanPanel item={item} />}
-      <div className={`resourceStage ${isVideo ? "videoStage" : ""}`}>
-        {src ? (
-          isVideo ? (
-            <video src={src} controls autoPlay controlsList="nodownload" style={{ width: `${zoom * 100}%`, height: `${zoom * 100}%` }} onContextMenu={(event) => event.preventDefault()} />
-          ) : isImage ? (
-            <img src={src} alt={item.title} onContextMenu={(event) => event.preventDefault()} />
+      {scanOpen ? (
+        <ScanPanel item={item} />
+      ) : (
+        <div className={`resourceStage ${isVideo ? "videoStage" : ""}`}>
+          {src ? (
+            isVideo ? (
+              <video src={src} controls autoPlay controlsList="nodownload" style={{ width: `${zoom * 100}%`, height: `${zoom * 100}%` }} onContextMenu={(event) => event.preventDefault()} />
+            ) : isImage ? (
+              <img src={src} alt={item.title} onContextMenu={(event) => event.preventDefault()} />
+            ) : isPdf && item.fileUrl ? (
+              <PdfImageViewer item={item} />
+            ) : (
+              <div className="documentFallback">
+                <FileText size={42} />
+                <strong>{item.fileName || item.title}</strong>
+              </div>
+            )
           ) : (
-            <iframe src={`${src}#toolbar=0&navpanes=0`} title={item.title} />
-          )
-        ) : (
-          <span>Upload unavailable</span>
-        )}
+            <span>Upload unavailable</span>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function PdfImageViewer({ item }) {
+  const [page, setPage] = useState(1);
+  const [imageUrl, setImageUrl] = useState("");
+  const [status, setStatus] = useState("Loading page");
+
+  useEffect(() => {
+    let revokedUrl = "";
+    setStatus("Loading page");
+    requestBlob(`/api/paper-scan?fileUrl=${encodeURIComponent(item.fileUrl)}&page=${page}`)
+      .then((blob) => {
+        const url = URL.createObjectURL(blob);
+        revokedUrl = url;
+        setImageUrl(url);
+        setStatus("");
+      })
+      .catch((error) => {
+        setImageUrl("");
+        setStatus(error.message);
+      });
+
+    return () => {
+      if (revokedUrl) URL.revokeObjectURL(revokedUrl);
+    };
+  }, [item.fileUrl, page]);
+
+  return (
+    <div className="pdfImageViewer">
+      <div className="pdfControls">
+        <button type="button" onClick={() => setPage((value) => Math.max(1, value - 1))}>Previous</button>
+        <input type="number" min="1" value={page} onChange={(event) => setPage(Math.max(1, Number(event.target.value || 1)))} aria-label="PDF page" />
+        <button type="button" onClick={() => setPage((value) => value + 1)}>Next</button>
+        {status && <span>{status}</span>}
       </div>
+      {imageUrl ? <img src={imageUrl} alt={`${item.title} page ${page}`} onContextMenu={(event) => event.preventDefault()} /> : <span>{status}</span>}
     </div>
   );
 }
@@ -825,11 +1007,13 @@ function ScanPanel({ item }) {
   const [selection, setSelection] = useState(null);
   const [dragStart, setDragStart] = useState(null);
   const [status, setStatus] = useState("");
+  const [ocrText, setOcrText] = useState("");
 
   useEffect(() => {
     let revokedUrl = "";
     setStatus("Preparing scan");
     setSelection(null);
+    setOcrText("");
     requestBlob(`/api/paper-scan?fileUrl=${encodeURIComponent(item.fileUrl)}&page=${page}&mode=${mode === "whole" ? "whole" : "page"}`)
       .then((blob) => {
         const url = URL.createObjectURL(blob);
@@ -890,22 +1074,46 @@ function ScanPanel({ item }) {
     canvas.getContext("2d").drawImage(image, crop.x, crop.y, crop.width, crop.height, 0, 0, canvas.width, canvas.height);
 
     const blob = await new Promise((resolve) => canvas.toBlob(resolve, "image/png"));
+    if (!blob) throw new Error("Could not prepare image.");
+    return blob;
+  };
+
+  const copyImageToClipboard = async () => {
+    const blob = await copyScan();
     if (!blob || !navigator.clipboard || !window.ClipboardItem) throw new Error("Image clipboard is not available in this browser.");
     await navigator.clipboard.write([new ClipboardItem({ "image/png": blob })]);
   };
 
-  const openAi = async (url) => {
-    const nextTab = window.open("about:blank", "_blank");
+  const copyScanToClipboard = async () => {
     try {
-      setStatus("Copying image");
-      await copyScan();
-      setStatus("Copied. Paste it in the AI tab with Ctrl+V.");
-      if (nextTab) nextTab.location.href = url;
-      else window.open(url, "_blank", "noopener,noreferrer");
+      if (ocrText) {
+        setStatus("Copying text");
+        await navigator.clipboard.writeText(ocrText);
+        setStatus("Text copied. Open an AI site, then paste with Ctrl+V.");
+      } else {
+        setStatus("Copying image");
+        await copyImageToClipboard();
+        setStatus("Image copied. Open an AI site, then paste with Ctrl+V.");
+      }
     } catch (error) {
-      nextTab?.close();
       setStatus(error.message);
     }
+  };
+
+  const convertScanToText = async () => {
+    try {
+      setStatus("Converting selected image to text");
+      const blob = await copyScan();
+      const result = await uploadBlob("/api/ocr-image", blob);
+      setOcrText(result.text);
+      setStatus("Text ready. Click Copy to copy text.");
+    } catch (error) {
+      setStatus(error.message);
+    }
+  };
+
+  const openAi = (url) => {
+    window.open(url, "_blank", "noopener,noreferrer");
   };
 
   return (
@@ -917,6 +1125,8 @@ function ScanPanel({ item }) {
           <button type="button" className={mode === "whole" ? "active" : ""} onClick={() => setMode("whole")}>Whole PDF</button>
         </div>
         {mode !== "whole" && <input type="number" min="1" value={page} onChange={(event) => setPage(Math.max(1, Number(event.target.value || 1)))} aria-label="PDF page" />}
+        <button type="button" onClick={convertScanToText}>Convert to text</button>
+        <button type="button" onClick={copyScanToClipboard}>Copy</button>
         <span>{status}</span>
       </div>
       <div className="aiDestinations">
@@ -924,6 +1134,9 @@ function ScanPanel({ item }) {
           <button key={label} type="button" onClick={() => openAi(url)}>{label}</button>
         ))}
       </div>
+      {ocrText && (
+        <textarea className="ocrText" value={ocrText} onChange={(event) => setOcrText(event.target.value)} aria-label="Converted text" />
+      )}
       <div
         className={`scanCanvas ${mode === "select" ? "selecting" : ""}`}
         onPointerDown={startSelection}

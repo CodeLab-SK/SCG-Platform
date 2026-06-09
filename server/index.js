@@ -14,8 +14,8 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DB_PATH = path.join(__dirname, "db.json");
 const UPLOAD_DIR = path.join(__dirname, "uploads");
 const PORT = process.env.PORT || 4000;
-const ADMIN_EMAIL = "sahilisthebest885@gmail.com";
-const ADMIN_PASSWORD = "sahil@885";
+const OWNER_EMAIL = "sahilisthebest885@gmail.com";
+const OWNER_PASSWORD = "sahil@885";
 const GEMINI_MODEL = process.env.GEMINI_MODEL || "gemini-1.5-flash";
 
 const app = express();
@@ -136,6 +136,17 @@ app.get("/api/paper-scan", requireUser, async (req, res) => {
   }
 });
 
+app.post("/api/ocr-image", requireUser, express.raw({ type: "*/*", limit: "50mb" }), async (req, res) => {
+  try {
+    if (!Buffer.isBuffer(req.body) || !req.body.length) return res.status(400).json({ error: "Image is required." });
+    const text = await extractImageTextWithOcr(req.body);
+    if (!text) return res.status(422).json({ error: "No readable text found in this image." });
+    res.json({ text });
+  } catch {
+    res.status(500).json({ error: "Could not convert this image to text." });
+  }
+});
+
 app.get("/", (_req, res) => {
   res.redirect("http://localhost:5173");
 });
@@ -171,13 +182,13 @@ async function readDb() {
   db.sessions ||= [];
   db.users ||= [];
 
-  if (!db.users.some((user) => user.email === ADMIN_EMAIL)) {
+  if (!db.users.some((user) => user.email === OWNER_EMAIL)) {
     db.users.push({
       id: nanoid(),
       name: "Sahil Admin",
-      email: ADMIN_EMAIL,
-      password: ADMIN_PASSWORD,
-      role: "admin",
+      email: OWNER_EMAIL,
+      password: OWNER_PASSWORD,
+      role: "owner",
       provider: "google",
       googleVerified: true,
       token: makeToken(),
@@ -185,12 +196,16 @@ async function readDb() {
     });
   }
 
+  db.users.forEach((user) => {
+    if (user.email === OWNER_EMAIL) user.role = "owner";
+  });
+
   if (!db.departments.length) {
     db.departments = ["Software Engineering", "Computer Science"].map((name) => ({
       id: nanoid(),
       name,
       createdAt: now(),
-      createdBy: ADMIN_EMAIL,
+      createdBy: OWNER_EMAIL,
       semesters: makeSemesters()
     }));
   }
@@ -246,7 +261,14 @@ async function requireUser(req, res, next) {
 
 async function requireAdmin(req, res, next) {
   await requireUser(req, res, () => {
-    if (req.user.role !== "admin") return res.status(403).json({ error: "Admin access required." });
+    if (!["owner", "admin"].includes(req.user.role)) return res.status(403).json({ error: "Admin access required." });
+    next();
+  });
+}
+
+async function requireOwner(req, res, next) {
+  await requireUser(req, res, () => {
+    if (req.user.role !== "owner") return res.status(403).json({ error: "Owner access required." });
     next();
   });
 }
@@ -274,7 +296,7 @@ async function deleteUploadedFile(item) {
 }
 
 function canManageResource(user, item, subject) {
-  return user.role === "admin" || item.addedByEmail === user.email || subject.createdBy === user.email;
+  return ["owner", "admin"].includes(user.role) || item.addedByEmail === user.email || subject.createdBy === user.email;
 }
 
 async function callGemini(text) {
@@ -624,7 +646,7 @@ app.post("/api/auth/register", async (req, res) => {
     name,
     email,
     password,
-    role: email === ADMIN_EMAIL ? "admin" : "student",
+    role: email === OWNER_EMAIL ? "owner" : "student",
     provider: "password",
     googleVerified: false,
     token: makeToken(),
@@ -652,7 +674,7 @@ app.post("/api/auth/google", async (req, res) => {
       name: profile.name || profile.email.split("@")[0],
       email: profile.email,
       password: "",
-      role: profile.email === ADMIN_EMAIL ? "admin" : "student",
+      role: profile.email === OWNER_EMAIL ? "owner" : "student",
       provider: "google",
       googleVerified: true,
       token: makeToken(),
@@ -665,6 +687,34 @@ app.post("/api/auth/google", async (req, res) => {
   user.token ||= makeToken();
   await writeDb(db);
   res.json({ token: user.token, user: publicUser(user) });
+});
+
+app.patch("/api/users/:userId/role", requireOwner, async (req, res) => {
+  const user = req.db.users.find((item) => item.id === req.params.userId);
+  if (!user) return res.status(404).json({ error: "User not found." });
+  if (user.email === OWNER_EMAIL || user.role === "owner") return res.status(400).json({ error: "Owner role cannot be changed." });
+
+  const role = req.body.role === "admin" ? "admin" : "student";
+  user.role = role;
+  await writeDb(req.db);
+  res.json(publicUser(user));
+});
+
+app.delete("/api/users/:userId", requireOwner, async (req, res) => {
+  const user = req.db.users.find((item) => item.id === req.params.userId);
+  if (!user) return res.status(404).json({ error: "User not found." });
+  if (user.email === OWNER_EMAIL || user.role === "owner") return res.status(400).json({ error: "Owner account cannot be removed." });
+
+  req.db.users = req.db.users.filter((item) => item.id !== req.params.userId);
+  req.db.tasks = req.db.tasks.filter((task) => task.ownerEmail !== user.email);
+  req.db.workspaces.forEach((workspace) => {
+    workspace.members = workspace.members?.filter((member) => member.email !== user.email) || [];
+  });
+  req.db.sessions.forEach((session) => {
+    session.attendees = session.attendees?.filter((attendee) => attendee.email !== user.email) || [];
+  });
+  await writeDb(req.db);
+  res.json({ ok: true });
 });
 
 app.post("/api/departments", requireAdmin, async (req, res) => {
@@ -724,7 +774,7 @@ app.delete("/api/departments/:departmentId/semesters/:semesterId/subjects/:subje
   if (!semester) return res.status(404).json({ error: "Semester not found." });
   const subject = semester.subjects.find((item) => item.id === req.params.subjectId);
   if (!subject) return res.status(404).json({ error: "Study section not found." });
-  if (req.user.role !== "admin" && subject.createdBy !== req.user.email) {
+  if (!["owner", "admin"].includes(req.user.role) && subject.createdBy !== req.user.email) {
     return res.status(403).json({ error: "Only the creator or admin can delete this study section." });
   }
   semester.subjects = semester.subjects.filter((item) => item.id !== req.params.subjectId);
@@ -957,7 +1007,7 @@ app.post("/api/workspaces/:id/leave", requireUser, async (req, res) => {
 app.delete("/api/workspaces/:id", requireUser, async (req, res) => {
   const workspace = req.db.workspaces.find((item) => item.id === req.params.id);
   if (!workspace) return res.status(404).json({ error: "Server not found." });
-  if (req.user.role !== "admin" && workspace.createdBy !== req.user.email) {
+  if (!["owner", "admin"].includes(req.user.role) && workspace.createdBy !== req.user.email) {
     return res.status(403).json({ error: "Only the owner or admin can delete this server." });
   }
   req.db.workspaces = req.db.workspaces.filter((item) => item.id !== req.params.id);
@@ -1017,7 +1067,7 @@ app.post("/api/tasks", requireUser, async (req, res) => {
 app.patch("/api/tasks/:id", requireUser, async (req, res) => {
   const task = req.db.tasks.find((item) => item.id === req.params.id);
   if (!task) return res.status(404).json({ error: "Task not found." });
-  if (task.ownerEmail !== req.user.email && req.user.role !== "admin") {
+  if (task.ownerEmail !== req.user.email && !["owner", "admin"].includes(req.user.role)) {
     return res.status(403).json({ error: "Only the owner or admin can update this task." });
   }
   if ("done" in req.body) task.done = Boolean(req.body.done);
@@ -1030,7 +1080,7 @@ app.patch("/api/tasks/:id", requireUser, async (req, res) => {
 app.delete("/api/tasks/:id", requireUser, async (req, res) => {
   const task = req.db.tasks.find((item) => item.id === req.params.id);
   if (!task) return res.status(404).json({ error: "Task not found." });
-  if (task.ownerEmail !== req.user.email && req.user.role !== "admin") {
+  if (task.ownerEmail !== req.user.email && !["owner", "admin"].includes(req.user.role)) {
     return res.status(403).json({ error: "Only the owner or admin can delete this task." });
   }
   req.db.tasks = req.db.tasks.filter((item) => item.id !== req.params.id);
@@ -1074,7 +1124,7 @@ app.post("/api/sessions/join", requireUser, async (req, res) => {
 app.delete("/api/sessions/:id", requireUser, async (req, res) => {
   const session = req.db.sessions.find((item) => item.id === req.params.id);
   if (!session) return res.status(404).json({ error: "Session not found." });
-  if (session.hostEmail === req.user.email || req.user.role === "admin") {
+  if (session.hostEmail === req.user.email || ["owner", "admin"].includes(req.user.role)) {
     req.db.sessions = req.db.sessions.filter((item) => item.id !== req.params.id);
   } else {
     session.attendees = session.attendees?.filter((attendee) => attendee.email !== req.user.email) || [];

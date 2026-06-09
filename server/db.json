@@ -68,6 +68,18 @@
               },
               "notes": [],
               "videos": []
+            },
+            {
+              "id": "cNRKmdcphJbKA-Fmw6gs4",
+              "name": "IS",
+              "createdAt": "2026-06-09T14:58:56.757Z",
+              "createdBy": "sahilisthebest885@gmail.com",
+              "papers": {
+                "midterm": [],
+                "finals": []
+              },
+              "notes": [],
+              "videos": []
             }
           ]
         },
@@ -177,9 +189,75 @@
           "subjects": []
         }
       ]
+    },
+    {
+      "id": "bRhb53h3AoxDfuHILlZ_V",
+      "name": "bio",
+      "createdAt": "2026-06-09T14:58:44.367Z",
+      "createdBy": "sahilisthebest885@gmail.com",
+      "semesters": [
+        {
+          "id": "G_Jn7fX_cfuHnQP5ZVDLK",
+          "number": 1,
+          "subjects": []
+        },
+        {
+          "id": "o9bHZJ7XQwU9EJs6eppn-",
+          "number": 2,
+          "subjects": []
+        },
+        {
+          "id": "n75gRwBVEVIEQ7mjrTC9l",
+          "number": 3,
+          "subjects": []
+        },
+        {
+          "id": "6u7vgNJLKsyQ5rJQXqlZM",
+          "number": 4,
+          "subjects": []
+        },
+        {
+          "id": "8LZrTITbtjGYDuT_zaN_g",
+          "number": 5,
+          "subjects": []
+        },
+        {
+          "id": "GlJ8u22VD_ngo4xaEIv5D",
+          "number": 6,
+          "subjects": []
+        },
+        {
+          "id": "oCEZqgaPCkSNMqnRCjm7h",
+          "number": 7,
+          "subjects": []
+        },
+        {
+          "id": "uYzRc9K7uJeQ6vr7E43Vi",
+          "number": 8,
+          "subjects": []
+        }
+      ]
     }
   ],
-  "workspaces": [],
+  "workspaces": [
+    {
+      "id": "nTaf6gWxI9gyPoLQCKgvB",
+      "joinCode": "5UZOW_",
+      "name": "sk",
+      "community": "sahil",
+      "members": [
+        {
+          "id": "olwUqQX5gFn4Mk1fYL61x",
+          "name": "Sahil Admin",
+          "email": "sahilisthebest885@gmail.com",
+          "role": "owner"
+        }
+      ],
+      "focus": "Exam preparation",
+      "createdBy": "sahilisthebest885@gmail.com",
+      "createdAt": "2026-06-09T16:04:21.445Z"
+    }
+  ],
   "messages": [
     {
       "id": "4NXs7SFpdsfprNDQR5h9A",
@@ -224,17 +302,7 @@
       "googleVerified": true,
       "token": "DkjheuFzP_1DiYIbRA6_1b2laPgm_4S1",
       "createdAt": "2026-05-22T15:50:40.212Z"
-    },
-    {
-      "id": "lYQ36L3rm_ADrf6Ci10LD",
-      "name": "Karan",
-      "email": "mountdew38@gmail.com",
-      "password": "mountdew38",
-      "role": "student",
-      "provider": "password",
-      "googleVerified": false,
-      "token": "DbtC45QnCDWL9SDNxaGeYvtk4OPw7FjE",
-      "createdAt": "2026-05-25T14:11:34.071Z"
     }
-  ]
+  ],
+  "directMessages": []
 }

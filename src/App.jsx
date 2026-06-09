@@ -112,6 +112,7 @@ function App() {
   const [activeSemesterId, setActiveSemesterId] = useState("");
   const [activeSubjectId, setActiveSubjectId] = useState("");
   const [activeWorkspaceId, setActiveWorkspaceId] = useState("");
+  const [activeChatEmail, setActiveChatEmail] = useState("");
   const [activeMeeting, setActiveMeeting] = useState(null);
   const [messageFeed, setMessageFeed] = useState([]);
   const [aiResult, setAiResult] = useState(null);
@@ -137,7 +138,7 @@ function App() {
     load();
     const socket = io(API_URL);
     socket.on("message:new", (message) => setMessageFeed((items) => [...items.slice(-7), message]));
-    ["workspace:created", "note:updated", "task:created", "task:updated", "task:deleted", "session:created"].forEach((event) => socket.on(event, load));
+    ["workspace:created", "note:updated", "task:created", "task:updated", "task:deleted", "session:created", "direct-message:new"].forEach((event) => socket.on(event, load));
     return () => socket.disconnect();
   }, []);
 
@@ -229,6 +230,7 @@ function App() {
             ["Past Papers", Library],
             ["Notes & Videos", BookOpen],
             ["Tasks", ClipboardList],
+            ["Chat", MessageSquare],
             ["AI Tools", Brain]
           ].map(([label, Icon]) => (
             <a href={`#${label.toLowerCase().replaceAll(" ", "-")}`} key={label}>
@@ -321,6 +323,19 @@ function App() {
             <LiveClassRoom meeting={activeMeeting} user={currentUser} onLeave={leaveMeeting} />
           </Panel>
         )}
+
+        <Panel id="chat" title="Direct Chat" icon={MessageSquare}>
+          <Gate user={currentUser} text="Login to chat with users.">
+            <DirectChat
+              users={users.filter((item) => item.email !== currentUser?.email)}
+              currentUser={currentUser}
+              messages={data.directMessages || []}
+              activeChatEmail={activeChatEmail}
+              setActiveChatEmail={setActiveChatEmail}
+              refreshAfter={refreshAfter}
+            />
+          </Gate>
+        </Panel>
 
         <section className="grid libraryGrid">
           <Panel title="Admin Departments" icon={FolderPlus}>
@@ -588,16 +603,109 @@ function OwnerSettings({ users, refreshAfter }) {
   );
 }
 
+function DirectChat({ users, currentUser, messages, activeChatEmail, setActiveChatEmail, refreshAfter }) {
+  const activeUser = users.find((user) => user.email === activeChatEmail) || users[0];
+  const [text, setText] = useState("");
+  const [file, setFile] = useState(null);
+  const thread = activeUser ? messages.filter((message) =>
+    [message.fromEmail, message.toEmail].includes(currentUser.email) &&
+    [message.fromEmail, message.toEmail].includes(activeUser.email)
+  ) : [];
+  const mutualServers = activeUser ? "Shared campus workspace" : "";
+
+  useEffect(() => {
+    if (!activeChatEmail && activeUser?.email) setActiveChatEmail(activeUser.email);
+  }, [activeChatEmail, activeUser?.email]);
+
+  const sendText = async () => {
+    if (!activeUser || !text.trim()) return;
+    await refreshAfter(request("/api/direct-messages", { method: "POST", body: JSON.stringify({ toEmail: activeUser.email, text }) }), "Message sent");
+    setText("");
+  };
+
+  const sendFile = async () => {
+    if (!activeUser || !file) return;
+    await refreshAfter(uploadFile(`/api/direct-messages/upload?toEmail=${encodeURIComponent(activeUser.email)}`, { title: file.name, file }), "File sent");
+    setFile(null);
+  };
+
+  return (
+    <div className="directChat">
+      <div className="chatUsers">
+        {users.map((user) => (
+          <button className={user.email === activeUser?.email ? "active" : ""} key={user.email} onClick={() => setActiveChatEmail(user.email)}>
+            <span>{user.name}</span>
+            <small>{user.role}</small>
+          </button>
+        ))}
+      </div>
+      <div className="chatThread">
+        {activeUser ? (
+          <>
+            <div className="chatProfile">
+              <strong>{activeUser.name}</strong>
+              <span>{activeUser.email}</span>
+              <small>{mutualServers}</small>
+            </div>
+            <div className="chatMessages">
+              {thread.map((message) => (
+                <div className={`dmBubble ${message.fromEmail === currentUser.email ? "mine" : ""}`} key={message.id}>
+                  <strong>{message.from}</strong>
+                  <span>{message.text}</span>
+                  {message.fileUrl && <a href={`${API_URL}${message.fileUrl}`} target="_blank" rel="noreferrer">{message.fileName || "Open file"}</a>}
+                </div>
+              ))}
+            </div>
+            <div className="chatComposer">
+              <label className="iconButton" title="Attach file">
+                <input type="file" accept="image/*,video/*,application/pdf,.doc,.docx,.txt" onChange={(event) => setFile(event.target.files?.[0] || null)} />
+                <Plus size={18} />
+              </label>
+              <Field placeholder={file ? file.name : "Message"} value={text} onChange={setText} />
+              {file ? <button onClick={sendFile}>Send file</button> : <button onClick={sendText}>Send</button>}
+            </div>
+          </>
+        ) : (
+          <EmptyState text="No users available for chat." />
+        )}
+      </div>
+    </div>
+  );
+}
+
+function VideoTile({ tile, featured, onFocus }) {
+  const ref = useRef(null);
+  useEffect(() => {
+    if (ref.current) ref.current.srcObject = tile.stream;
+  }, [tile.stream]);
+
+  return (
+    <button className={`videoTile ${featured ? "featured" : "mini"}`} onClick={onFocus} title={tile.label}>
+      <video ref={ref} autoPlay playsInline muted />
+      <span>{tile.label}</span>
+    </button>
+  );
+}
+
 function LiveClassRoom({ meeting, user, onLeave }) {
-  const videoRef = useRef(null);
   const socketRef = useRef(null);
-  const [stream, setStream] = useState(null);
-  const [screen, setScreen] = useState(false);
-  const [camera, setCamera] = useState(false);
-  const [mic, setMic] = useState(false);
+  const cameraStreamRef = useRef(null);
+  const screenStreamRef = useRef(null);
+  const [cameraStream, setCameraStream] = useState(null);
+  const [screenStream, setScreenStream] = useState(null);
+  const [mic, setMic] = useState(true);
+  const [focusTile, setFocusTile] = useState("camera");
   const [chat, setChat] = useState([]);
   const [text, setText] = useState("");
   const [participants, setParticipants] = useState(user ? [user.name] : []);
+
+  useEffect(() => {
+    cameraStreamRef.current = cameraStream;
+  }, [cameraStream]);
+
+  useEffect(() => {
+    screenStreamRef.current = screenStream;
+  }, [screenStream]);
 
   useEffect(() => {
     const socket = io(API_URL);
@@ -606,38 +714,41 @@ function LiveClassRoom({ meeting, user, onLeave }) {
     socket.on("live:participant", (participant) => setParticipants((items) => [...new Set([...items, participant?.name].filter(Boolean))]));
     socket.on("live:chat", (message) => setChat((items) => [...items, message]));
     return () => {
-      stream?.getTracks().forEach((track) => track.stop());
+      cameraStreamRef.current?.getTracks().forEach((track) => track.stop());
+      screenStreamRef.current?.getTracks().forEach((track) => track.stop());
       socket.disconnect();
     };
   }, [meeting.meetingCode]);
 
-  const attachStream = (nextStream) => {
-    setStream(nextStream);
-    if (videoRef.current) videoRef.current.srcObject = nextStream;
-  };
-
   const startCamera = async () => {
+    if (cameraStream) {
+      cameraStream.getTracks().forEach((track) => track.stop());
+      setCameraStream(null);
+      return;
+    }
     const nextStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-    attachStream(nextStream);
-    setCamera(true);
-    setMic(true);
-    setScreen(false);
+    nextStream.getAudioTracks().forEach((track) => { track.enabled = mic; });
+    setCameraStream(nextStream);
+    setFocusTile("camera");
   };
 
   const shareScreen = async () => {
+    if (screenStream) {
+      screenStream.getTracks().forEach((track) => track.stop());
+      setScreenStream(null);
+      return;
+    }
     const nextStream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: true });
-    attachStream(nextStream);
-    setScreen(true);
-    setCamera(false);
+    nextStream.getVideoTracks()[0]?.addEventListener("ended", () => setScreenStream(null));
+    setScreenStream(nextStream);
+    setFocusTile("screen");
   };
 
   const stopMedia = () => {
-    stream?.getTracks().forEach((track) => track.stop());
-    setStream(null);
-    if (videoRef.current) videoRef.current.srcObject = null;
-    setCamera(false);
-    setMic(false);
-    setScreen(false);
+    cameraStream?.getTracks().forEach((track) => track.stop());
+    screenStream?.getTracks().forEach((track) => track.stop());
+    setCameraStream(null);
+    setScreenStream(null);
   };
 
   const leaveClass = () => {
@@ -647,14 +758,23 @@ function LiveClassRoom({ meeting, user, onLeave }) {
   };
 
   const toggleMic = () => {
-    stream?.getAudioTracks().forEach((track) => { track.enabled = !track.enabled; setMic(track.enabled); });
+    const nextMic = !mic;
+    cameraStream?.getAudioTracks().forEach((track) => { track.enabled = nextMic; });
+    setMic(nextMic);
   };
+
+  const tiles = [
+    cameraStream && { id: "camera", label: `${user?.name || "You"} camera`, stream: cameraStream },
+    screenStream && { id: "screen", label: `${user?.name || "You"} is sharing screen`, stream: screenStream }
+  ].filter(Boolean);
+  const orderedTiles = tiles.sort((a, b) => (a.id === focusTile ? -1 : b.id === focusTile ? 1 : 0));
 
   return (
     <div className="liveRoom">
-      <div className="stage">
-        <video ref={videoRef} autoPlay playsInline muted />
-        {!stream && <div className="stageEmpty">Camera or screen share preview</div>}
+      <div className={`stage multiStage ${orderedTiles.length > 1 ? "hasMiniTile" : ""}`}>
+        {orderedTiles.length ? orderedTiles.map((tile, index) => (
+          <VideoTile key={tile.id} tile={tile} featured={index === 0} onFocus={() => setFocusTile(tile.id)} />
+        )) : <div className="stageEmpty">Camera or screen share preview</div>}
       </div>
       <div className="meetingPanel">
         <div className="serverMeta">
@@ -663,9 +783,9 @@ function LiveClassRoom({ meeting, user, onLeave }) {
           <button className="iconButton" onClick={() => navigator.clipboard?.writeText(meeting.meetingCode)} title="Copy meeting code"><Copy size={16} /></button>
         </div>
         <div className="controls">
-          <button onClick={startCamera}>{camera ? <VideoOff size={17} /> : <Camera size={17} />}Camera</button>
+          <button onClick={startCamera}>{cameraStream ? <VideoOff size={17} /> : <Camera size={17} />}{cameraStream ? "Stop camera" : "Camera"}</button>
           <button onClick={toggleMic}>{mic ? <Mic size={17} /> : <MicOff size={17} />}Mic</button>
-          <button onClick={shareScreen}>{screen ? <ScreenShareOff size={17} /> : <MonitorUp size={17} />}Share</button>
+          <button onClick={shareScreen}>{screenStream ? <ScreenShareOff size={17} /> : <MonitorUp size={17} />}{screenStream ? "Stop share" : "Share"}</button>
           <button onClick={stopMedia}><VideoOff size={17} />Leave media</button>
           <button className="dangerButton" onClick={leaveClass}>Leave session</button>
         </div>

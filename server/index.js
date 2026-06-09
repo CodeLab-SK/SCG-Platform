@@ -177,6 +177,7 @@ async function readDb() {
   db.departments ||= [];
   db.workspaces ||= [];
   db.messages ||= [];
+  db.directMessages ||= [];
   db.notes ||= [];
   db.tasks ||= [];
   db.sessions ||= [];
@@ -566,6 +567,30 @@ async function callPollinationsText(text) {
   };
 }
 
+function localAiFallback(text) {
+  const sentences = text
+    .replace(/\s+/g, " ")
+    .split(/(?<=[.!?])\s+/)
+    .map((sentence) => sentence.trim())
+    .filter(Boolean);
+  const keywords = [...new Set(text.toLowerCase().match(/\b[a-z][a-z0-9-]{4,}\b/g) || [])].slice(0, 6);
+  const summary = sentences.slice(0, 4).join(" ") || text.slice(0, 500);
+
+  return {
+    provider: "Local fallback",
+    summary: `External AI is unavailable, so this is a local study fallback. ${summary}`,
+    flashcards: keywords.slice(0, 5).map((keyword) => ({
+      question: `What should you remember about ${keyword}?`,
+      answer: `Review how "${keyword}" is used in your notes and write one example from the material.`
+    })),
+    plan: [
+      "Read the notes once and underline the main definitions.",
+      "Turn each heading or keyword into a short question.",
+      "Practice by explaining the topic without looking, then check missing points."
+    ]
+  };
+}
+
 async function callPollinationsPaper(text, title) {
   const prompt = `Read this past paper text and solve it.
 Give only the solved paper in clear readable text.
@@ -613,6 +638,7 @@ app.get("/api/bootstrap", async (req, res) => {
     ...db,
     workspaces,
     messages: user ? db.messages.filter((message) => workspaceIds.has(message.workspaceId)) : [],
+    directMessages: user ? db.directMessages.filter((message) => message.fromEmail === user.email || message.toEmail === user.email) : [],
     tasks: user ? db.tasks.filter((task) => task.ownerEmail === user.email) : [],
     sessions,
     users: db.users.map(publicUser),
@@ -1036,6 +1062,56 @@ app.post("/api/messages", requireUser, async (req, res) => {
   res.status(201).json(message);
 });
 
+app.post("/api/direct-messages", requireUser, async (req, res) => {
+  const toEmail = String(req.body.toEmail || "").trim().toLowerCase();
+  const text = String(req.body.text || "").trim();
+  const receiver = req.db.users.find((user) => user.email === toEmail);
+  if (!receiver) return res.status(404).json({ error: "User not found." });
+  if (!text) return res.status(400).json({ error: "Message is required." });
+
+  const message = {
+    id: nanoid(),
+    from: req.user.name,
+    fromEmail: req.user.email,
+    to: receiver.name,
+    toEmail,
+    text,
+    createdAt: now()
+  };
+  req.db.directMessages.push(message);
+  await writeDb(req.db);
+  io.emit("direct-message:new", message);
+  res.status(201).json(message);
+});
+
+app.post("/api/direct-messages/upload", requireUser, express.raw({ type: "*/*", limit: "200mb" }), async (req, res) => {
+  try {
+    const toEmail = String(req.query.toEmail || "").trim().toLowerCase();
+    const receiver = req.db.users.find((user) => user.email === toEmail);
+    if (!receiver) return res.status(404).json({ error: "User not found." });
+
+    const upload = await saveUpload(req, "chats");
+    const message = {
+      id: nanoid(),
+      from: req.user.name,
+      fromEmail: req.user.email,
+      to: receiver.name,
+      toEmail,
+      text: upload.title,
+      fileName: upload.fileName,
+      fileUrl: upload.fileUrl,
+      mimeType: upload.mimeType,
+      createdAt: now()
+    };
+    req.db.directMessages.push(message);
+    await writeDb(req.db);
+    io.emit("direct-message:new", message);
+    res.status(201).json(message);
+  } catch (error) {
+    res.status(error.status || 500).json({ error: error.message || "Upload failed." });
+  }
+});
+
 app.post("/api/notes", requireUser, async (req, res) => {
   const note = {
     id: nanoid(),
@@ -1150,9 +1226,7 @@ app.post("/api/ai/suggest", requireUser, async (req, res) => {
     try {
       return res.json(await callPollinationsText(text));
     } catch {
-      return res.status(503).json({
-        error: "External AI service is unavailable. Set GEMINI_API_KEY or try again when internet access is working."
-      });
+      return res.json(localAiFallback(text));
     }
   }
 });

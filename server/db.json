@@ -251,6 +251,12 @@
           "name": "Sahil Admin",
           "email": "sahilisthebest885@gmail.com",
           "role": "owner"
+        },
+        {
+          "id": "9gIvd_lHR6S4yZyvYx_On",
+          "name": "KARAN",
+          "email": "mountdew30@gmail.com",
+          "role": "member"
         }
       ],
       "focus": "Exam preparation",
@@ -265,11 +271,37 @@
       "author": "Student",
       "text": "hi",
       "createdAt": "2026-05-22T15:34:38.889Z"
+    },
+    {
+      "id": "WteaLj-anmGZV5VUC0vbx",
+      "workspaceId": "nTaf6gWxI9gyPoLQCKgvB",
+      "author": "KARAN",
+      "authorEmail": "mountdew30@gmail.com",
+      "text": "hi",
+      "createdAt": "2026-06-09T16:07:48.760Z"
     }
   ],
   "notes": [],
   "tasks": [],
   "sessions": [
+    {
+      "id": "FL9C3_TYjiC-nQ_PCQxF-",
+      "meetingCode": "MWXLAJ",
+      "workspaceId": "nTaf6gWxI9gyPoLQCKgvB",
+      "title": "Study session",
+      "startsAt": "2026-06-12T15:34:04.603Z",
+      "duration": 60,
+      "attendees": [
+        {
+          "id": "olwUqQX5gFn4Mk1fYL61x",
+          "name": "Sahil Admin",
+          "email": "sahilisthebest885@gmail.com"
+        }
+      ],
+      "host": "Sahil Admin",
+      "hostEmail": "sahilisthebest885@gmail.com",
+      "createdAt": "2026-06-12T15:34:04.603Z"
+    },
     {
       "id": "MXizzVzrSrQmNqsQMOSp0",
       "title": "Study session",
@@ -302,7 +334,40 @@
       "googleVerified": true,
       "token": "DkjheuFzP_1DiYIbRA6_1b2laPgm_4S1",
       "createdAt": "2026-05-22T15:50:40.212Z"
+    },
+    {
+      "id": "9gIvd_lHR6S4yZyvYx_On",
+      "name": "KARAN",
+      "email": "mountdew30@gmail.com",
+      "password": "mountdew38",
+      "role": "student",
+      "provider": "password",
+      "googleVerified": false,
+      "token": "TylhSftJqBEGxrazDRZtGkxAe3NF1W1Q",
+      "createdAt": "2026-06-09T16:07:27.546Z"
     }
   ],
-  "directMessages": []
+  "directMessages": [
+    {
+      "id": "t4xZ3xn0Ktxu6BiVZQQLU",
+      "from": "Sahil Admin",
+      "fromEmail": "sahilisthebest885@gmail.com",
+      "to": "KARAN",
+      "toEmail": "mountdew30@gmail.com",
+      "text": "hi",
+      "createdAt": "2026-06-09T16:08:04.422Z"
+    },
+    {
+      "id": "hzacd_yQ5SCSufZOucrzl",
+      "from": "Sahil Admin",
+      "fromEmail": "sahilisthebest885@gmail.com",
+      "to": "KARAN",
+      "toEmail": "mountdew30@gmail.com",
+      "text": "Info Sec-mids. M.pdf",
+      "fileName": "Info Sec-mids. M.pdf",
+      "fileUrl": "/uploads/chats/K4t2eelNvV3oi9IYyVnkz-Info-Sec-mids-M.pdf",
+      "mimeType": "application/pdf",
+      "createdAt": "2026-06-09T16:08:17.432Z"
+    }
+  ]
 }
